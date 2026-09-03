@@ -7,7 +7,6 @@
  */
 import { useState } from 'react'
 import {
-  BIRTH_PLACES,
   CALENDAR_TYPES,
   GENDERS,
   MAX_TOPICS,
@@ -45,7 +44,6 @@ export default function BirthForm({
   const [minute, setMinute] = useState('00')
   const [jiji, setJiji] = useState('11:30')
   const [timeUnknown, setTimeUnknown] = useState(false)
-  const [place, setPlace] = useState('서울')
   const [topics, setTopics] = useState<Topic[]>([...TOPICS])
   const [agreed, setAgreed] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
@@ -89,7 +87,7 @@ export default function BirthForm({
       birth_date: birthDate,
       is_leap_month: showLeap ? isLeapMonth : false,
       birth_time: birthTime,
-      birth_place: place,
+      birth_place: '서울',
       topics,
       tarot_mode: 'auto' as const,
       privacy_agreed: agreed,
@@ -286,15 +284,6 @@ export default function BirthForm({
             </div>
           </Field>
 
-          <Field label="태어난 곳" hint="시간을 더 정확히 보정합니다">
-            <Select ariaLabel="태어난 곳" value={place} onChange={setPlace}>
-              {BIRTH_PLACES.map((p) => (
-                <option key={p.name} value={p.name}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
         </fieldset>
 
         <hr className="border-paper-200 dark:border-ink-800" />

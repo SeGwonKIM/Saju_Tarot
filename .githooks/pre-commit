@@ -46,7 +46,15 @@ patterns=(
 for f in $staged; do
   case "$f" in
     .env.example|.githooks/*|*.md) continue ;;
+    # 바이너리는 검사하지 않는다. 키가 들어갈 형태가 아니고,
+    # 이미지 수십 장을 정규식으로 훑으면 커밋이 몇 분씩 걸린다.
+    *.jpg|*.jpeg|*.png|*.gif|*.webp|*.avif|*.ico|*.woff|*.woff2|*.ttf|*.otf) continue ;;
+    *.pdf|*.zip|*.gz|*.mp3|*.mp4|*.webm|*.wasm|*.pyc) continue ;;
   esac
+  # 그 밖에 확장자로 못 걸러낸 바이너리도 건너뛴다 (git 이 판단해 준다)
+  if git diff --cached --numstat -- "$f" | grep -q '^-\s*-\s'; then
+    continue
+  fi
   content=$(git show ":$f" 2>/dev/null) || continue
   for p in "${patterns[@]}"; do
     if echo "$content" | grep -Eq -- "$p"; then

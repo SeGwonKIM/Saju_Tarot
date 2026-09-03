@@ -120,6 +120,10 @@ export default function ResultPage() {
           <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-300">
             세 장을 다섯 주제의 공통 근거로 읽습니다
           </p>
+          {/* 퍼블릭 도메인 이미지 출처 표기 (PRD §18.1 Q5) */}
+          <p className="mt-1 text-[11px] text-ink-300 dark:text-ink-400">
+            카드 그림: 라이더-웨이트 타로(1909, Pamela Colman Smith) · 퍼블릭 도메인
+          </p>
           {/* 3장 고정 스프레드 (PRD §8.6) */}
           <div className="mt-5 grid grid-cols-3 gap-4">
             {tarot.map((c) => (
