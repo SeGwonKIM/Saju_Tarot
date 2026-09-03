@@ -186,6 +186,12 @@ export default function ResultPage() {
               <dt>엔진 버전</dt>
               <dd>{reading.engine_version}</dd>
             </div>
+            {reading.report_model && (
+              <div className="flex justify-between gap-4">
+                <dt>문장 생성</dt>
+                <dd>{reading.report_model}</dd>
+              </div>
+            )}
           </dl>
         </details>
 

@@ -1,0 +1,203 @@
+"""문장 생성 레이어 테스트 (PRD §11).
+
+네트워크를 타지 않는다. 실제 호출은 맨 아래 live 마커 테스트 하나뿐이고 기본 제외다.
+"""
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
+from app.report_service import (
+    BANNED,
+    TOPIC_RULES,
+    TOPIC_WEIGHTS,
+    NullReportGenerator,
+    Report,
+    _schema,
+    _user_prompt,
+    build_facts,
+    has_banned_word,
+)
+from app.routers.readings import get_generator
+from tests.conftest import FakeReportGenerator
+
+client = TestClient(app)
+
+VALID = {
+    "name": "홍길동",
+    "gender": "여",
+    "calendar_type": "lunar",
+    "birth_date": "1988-03-05",
+    "birth_time": "20:30",
+    "birth_place": "서울",
+    "topics": ["재회운", "상대방속마음", "연애"],
+    "tarot_mode": "auto",
+}
+
+PILLARS = {
+    "year": {"gan": "戊", "ji": "辰", "ko": "무진"},
+    "month": {"gan": "丙", "ji": "辰", "ko": "병진"},
+    "day": {"gan": "乙", "ji": "巳", "ko": "을사"},
+    "hour": {"gan": "丙", "ji": "戌", "ko": "병술"},
+}
+TAROT = [
+    {"position_ko": "지금 놓인 자리", "card_ko": "별", "reversed": False, "keywords": ["희망"]},
+]
+
+
+# ── 사실 블록 (계산 결과를 고정 사실로 넘긴다) ────────────────
+
+
+def test_facts_include_all_pillars_and_elements():
+    facts = build_facts(PILLARS, {"목": 1.6, "화": 4.2}, ["토 과다"], TAROT, "1988-04-20 20:30")
+    assert "무진" in facts and "병술" in facts
+    assert "토 과다" in facts
+    assert "지금 놓인 자리 = 별(정방향" in facts
+    assert "1988-04-20 20:30" in facts
+
+
+def test_facts_note_unknown_hour():
+    facts = build_facts({**PILLARS, "hour": None}, {"목": 1}, ["균형"], TAROT, "기준")
+    assert "출생시각 미상" in facts
+    assert "병술" not in facts
+
+
+def test_facts_forbid_per_topic_cards():
+    """3장을 주제별로 쪼개 배정하지 말라는 지시가 사실 블록에 들어간다 (PRD §8.6)."""
+    facts = build_facts(PILLARS, {"목": 1}, ["균형"], TAROT, "기준")
+    assert "주제마다 다른 카드를 배정하지 마십시오" in facts
+
+
+# ── 출력 스키마 (프롬프트 부탁이 아니라 스키마로 막는다) ──────
+
+
+def test_schema_pins_topics_with_enum():
+    """실측: 모델이 요청하지 않은 '종합' 주제를 만들어 냈다. enum 으로 구조적으로 차단한다."""
+    topics = ["재회운", "연애"]
+    s = _schema(topics)
+    advice = s["schema"]["properties"]["advice"]
+    assert advice["items"]["properties"]["topic"]["enum"] == topics
+    assert advice["minItems"] == advice["maxItems"] == 2
+    assert s["strict"] is True
+
+
+def test_schema_fixes_flow_at_three_lines():
+    flow = _schema(["연애"])["schema"]["properties"]["monthly_flow"]
+    assert flow["minItems"] == flow["maxItems"] == 3
+
+
+def test_schema_rejects_extra_fields():
+    s = _schema(["연애"])["schema"]
+    assert s["additionalProperties"] is False
+
+
+# ── 프롬프트 (주제별 비중과 주의사항, 인젝션 대비) ────────────
+
+
+def test_prompt_includes_weights_and_rules():
+    p = _user_prompt("사실", "홍길동", ["재회운", "상대방속마음"])
+    assert "사주 3 : 타로 7" in p  # 재회운
+    assert "사주 1 : 타로 9" in p  # 상대방속마음
+    assert TOPIC_RULES["재회운"] in p
+    assert "상대의 생년월일이 없다는 사실" in p
+
+
+def test_prompt_wraps_user_data():
+    """이름은 지시가 아니라 값으로 감싼다 (PRD §12.18)."""
+    p = _user_prompt("사실", "홍길동", ["연애"])
+    assert "<사용자데이터>" in p and "</사용자데이터>" in p
+    assert p.index("<사용자데이터>") < p.index("홍길동") < p.index("</사용자데이터>")
+
+
+def test_every_topic_has_weight_and_rule():
+    from app.routers.readings import TOPICS
+
+    for t in TOPICS:
+        assert t in TOPIC_WEIGHTS
+        assert t in TOPIC_RULES
+
+
+# ── 금지어 후처리 ─────────────────────────────────────────────
+
+
+@pytest.mark.parametrize("word", ["암", "완치", "수익 보장", "사망"])
+def test_banned_word_detected(word):
+    r = Report(monthly_flow=[f"이번 달은 {word} 관련 흐름입니다."], advice={}, keywords=[])
+    assert has_banned_word(r) == word
+
+
+def test_clean_report_passes():
+    r = Report(
+        monthly_flow=["차분히 흐름을 살피기 좋은 달입니다."],
+        advice={"연애": "상대의 속도를 확인해 보시면 좋습니다."},
+        keywords=["정리"],
+    )
+    assert has_banned_word(r) is None
+
+
+def test_banned_list_covers_medical_and_investment():
+    assert any(w in BANNED for w in ("암", "완치"))
+    assert "수익 보장" in BANNED
+
+
+# ── 부분 성공 경로 (PRD §11.3) ────────────────────────────────
+
+
+def test_null_generator_returns_none():
+    assert NullReportGenerator().generate("사실", "홍길동", ["연애"]) is None
+
+
+def test_endpoint_returns_report_when_generation_succeeds(no_network_generator):
+    r = client.post("/api/v1/readings", json=VALID)
+    assert r.status_code == 201
+    d = r.json()
+    assert len(d["report"]["monthly_flow"]) == 3
+    assert set(d["report"]["advice"]) == set(VALID["topics"])
+    assert d["report"]["disclaimer"]
+    assert d["report_model"] == "fake-model"
+
+
+def test_endpoint_survives_generation_failure():
+    """문장 생성이 실패해도 계산 결과는 그대로 나가고 500 이 아니다."""
+    app.dependency_overrides[get_generator] = lambda: FakeReportGenerator(fail=True)
+    try:
+        r = client.post("/api/v1/readings", json=VALID)
+        assert r.status_code == 201
+        d = r.json()
+        assert d["report"] is None
+        assert d["report_model"] is None
+        assert d["pillars"]["year"]["ko"]  # 계산 결과는 살아 있다
+        assert len(d["tarot"]) == 3
+    finally:
+        app.dependency_overrides.pop(get_generator, None)
+
+
+def test_generator_receives_only_selected_topics(no_network_generator):
+    client.post("/api/v1/readings", json={**VALID, "topics": ["재물"]})
+    _, name, topics = no_network_generator.calls[-1]
+    assert topics == ["재물"]
+    assert name == "홍길동"
+
+
+# ── 실제 호출 (기본 제외, `pytest -m live` 로만 실행) ─────────
+
+
+@pytest.mark.live
+def test_live_generation_produces_korean_sentences():
+    from app.config import get_settings
+    from app.report_service import OpenAIReportGenerator
+
+    settings = get_settings()
+    if not settings.openai_api_key or settings.openai_api_key == "CHANGE_ME":
+        pytest.skip("OPENAI_API_KEY 없음")
+
+    gen = OpenAIReportGenerator(settings.openai_api_key, settings.report_model)
+    facts = build_facts(PILLARS, {"목": 1.6, "화": 4.2, "토": 7.2, "금": 0.6, "수": 0.4},
+                        ["토 과다"], TAROT, "1988-04-20 20:30")
+    report = gen.generate(facts, "홍길동", ["재회운", "연애"])
+
+    assert report is not None
+    assert len(report.monthly_flow) == 3
+    assert set(report.advice) == {"재회운", "연애"}      # enum 이 주제를 고정했는지
+    assert has_banned_word(report) is None
+    assert all(len(s) <= 120 for s in report.monthly_flow)

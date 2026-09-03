@@ -1,7 +1,8 @@
 """리포트 생성 (PRD §10.2).
 
-지금은 계산까지만 한다 — 원국·오행·타로. LLM 해석은 7단계에서 붙인다.
-그때까지 `report` 는 null 로 나가고, 화면은 계산 결과만 보여준다(부분 성공, PRD §11.3).
+계산(원국·오행·타로)과 문장 생성(§11)을 이어 붙인다.
+문장 생성이 실패하거나 키가 없으면 `report` 를 null 로 내보내고 계산 결과만 보여준다
+— 500 을 내지 않는다 (부분 성공, PRD §11.3).
 
 입력 검증은 프론트와 **같은 규칙을 여기서 다시** 한다 (PRD §12.2 프론트는 못 믿는다).
 """
@@ -9,15 +10,35 @@
 from datetime import date, datetime
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field, field_validator
 
 from ..calendar_service import CalendarError, lunar_to_solar
+from ..config import get_settings
 from ..korea_time import correct
+from ..report_service import (
+    NullReportGenerator,
+    OpenAIReportGenerator,
+    ReportGenerator,
+    build_facts,
+)
 from ..saju_service import ELEMENTS, MidnightRule, build_chart
 from ..tarot_service import draw, new_seed
 
 router = APIRouter(prefix="/readings", tags=["readings"])
+
+
+def get_generator() -> ReportGenerator:
+    """키가 있으면 실제 생성기, 없으면 계산 결과만 내는 경로 (PRD §11.3).
+
+    FastAPI 의존성으로 주입한다 — 테스트가 이걸 갈아끼워 **네트워크를 타지 않게** 한다.
+    테스트가 실제 API 를 호출하면 느려지고 비용이 든다.
+    """
+    settings = get_settings()
+    if settings.openai_api_key and settings.openai_api_key != "CHANGE_ME":
+        return OpenAIReportGenerator(settings.openai_api_key, settings.report_model)
+    return NullReportGenerator()
+
 
 TOPICS = ("재회운", "상대방속마음", "연애", "재물", "대인관계")
 
@@ -105,14 +126,22 @@ class PillarsOut(BaseModel):
     hour: PillarOut | None
 
 
+class ReportOut(BaseModel):
+    monthly_flow: list[str]
+    advice: dict[str, str]
+    keywords: list[str]
+    disclaimer: str
+
+
 class ReadingResponse(BaseModel):
     id: str
     input_echo: InputEcho
     pillars: PillarsOut
     elements: ElementsOut
     tarot: list[TarotOut]
-    report: None = None
-    """LLM 해석 — 7단계에서 붙는다. 그때까지 null (PRD §11.3 부분 성공 경로를 그대로 쓴다)"""
+    report: ReportOut | None = None
+    """생성 실패·키 없음이면 null — 계산 결과만 보여준다 (PRD §11.3 부분 성공)"""
+    report_model: str | None = None
     engine_version: str
     tarot_seed: int
     draft_before_tone_learning: bool = True
@@ -132,7 +161,10 @@ def _to_solar(body: ReadingRequest) -> date:
 
 
 @router.post("", response_model=ReadingResponse, status_code=201)
-def create_reading(body: ReadingRequest) -> ReadingResponse:
+def create_reading(
+    body: ReadingRequest,
+    generator: ReportGenerator = Depends(get_generator),
+) -> ReadingResponse:
     solar = _to_solar(body)
 
     # 시간 미상이면 정오를 기준으로 절기·일주만 잡고 시주는 만들지 않는다 (PRD §8.3)
@@ -152,6 +184,26 @@ def create_reading(body: ReadingRequest) -> ReadingResponse:
 
     seed = new_seed()
     cards = draw(seed)
+    tarot_out = [TarotOut(**c.__dict__) for c in cards]
+
+    # 문장 생성 — 실패해도 계산 결과는 그대로 돌려준다 (PRD §11.3)
+    facts = build_facts(
+        pillars={
+            "year": chart.year.__dict__,
+            "month": chart.month.__dict__,
+            "day": chart.day.__dict__,
+            "hour": chart.hour.__dict__ if chart.hour else None,
+        },
+        elements=chart.elements.counts,
+        verdict=chart.elements.verdict,
+        tarot=[c.model_dump() for c in tarot_out],
+        basis=(
+            f"{corrected.clock.isoformat(timespec='minutes')} "
+            f"(진태양시 {corrected.true_solar_correction_min}분 보정, "
+            f"서머타임 {'적용' if corrected.dst_applied else '미적용'}, {rule} 기준)"
+        ),
+    )
+    report = generator.generate(facts, body.name, list(body.topics))
 
     return ReadingResponse(
         id=f"r-{seed:016x}",
@@ -172,7 +224,16 @@ def create_reading(body: ReadingRequest) -> ReadingResponse:
             **{e: chart.elements.counts[e] for e in ELEMENTS},
             verdict=chart.elements.verdict,
         ),
-        tarot=[TarotOut(**c.__dict__) for c in cards],
+        tarot=tarot_out,
+        report=ReportOut(
+            monthly_flow=report.monthly_flow,
+            advice=report.advice,
+            keywords=report.keywords,
+            disclaimer=report.disclaimer,
+        )
+        if report
+        else None,
+        report_model=report.model if report else None,
         engine_version=chart.engine_version,
         tarot_seed=seed,
     )

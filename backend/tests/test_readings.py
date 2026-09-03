@@ -43,7 +43,7 @@ def test_creates_reading_with_real_calculation():
     assert d["pillars"]["year"]["ko"] == "무진"
     assert d["pillars"]["hour"] is not None
     assert len(d["tarot"]) == 3
-    assert d["report"] is None  # LLM 은 7단계
+    assert d["report"] is not None  # 7단계에서 붙었다 (테스트는 가짜 생성기)
     assert "lunar-python" in d["engine_version"]
 
 

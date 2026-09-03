@@ -174,6 +174,8 @@ export const readingSchema = z.object({
       disclaimer: z.string(),
     })
     .nullable(),
+  /** 어떤 모델이 문장을 썼는지 — 리포트에 표기한다 (PRD §6.3 ⑦) */
+  report_model: z.string().nullable().optional(),
   engine_version: z.string(),
   /** 같은 링크가 항상 같은 카드를 내도록 저장한다 (PRD §8.6) */
   tarot_seed: z.number().optional(),

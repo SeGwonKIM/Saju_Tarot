@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     #  1단계에서는 아직 붙이지 않으므로 기본값 빈 문자열.
     #  각 기능이 붙는 단계에서 require_secret() 으로 존재를 강제한다.
     anthropic_api_key: str = ""
+    # 문장 생성 공급자 — 지금은 OpenAI 키로 진행한다 (PRD §4.7)
+    openai_api_key: str = ""
+    report_model: str = "gpt-5.5"
     supabase_url: str = ""
     supabase_service_role_key: str = ""
     field_encryption_key: str = ""

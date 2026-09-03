@@ -30,6 +30,7 @@ npm run dev
 ```
 
 테스트: `cd backend && ./.venv/Scripts/python.exe -m pytest -q`
+(실제 LLM 호출은 기본 제외 — 돌리려면 `pytest -m live`)
 
 ## 처음 한 번만 — 보안 설정 (PRD §12.11)
 
@@ -63,7 +64,8 @@ cp .env.example frontend/.env          # VITE_ 로 시작하는 항목만 남긴
 - [ ] 4b단계 — KASI 절기 전수 대조 (서비스 키 필요, 아래 참고)
 - [x] 5단계 — `POST /readings` 실제 계산 연결 (목업 스위치 off)
 - [x] 6단계 — 타로 엔진 + 카드 마스터 78장
-- [ ] 7단계 — LLM 리포트 생성
+- [x] 7단계 — 리포트 문장 생성 (OpenAI `gpt-5.5`, 어댑터로 분리)
+- [ ] 8단계 — Supabase 저장 + RLS + 로그인
 
 ## KASI 절기 대조 (4b단계)
 
