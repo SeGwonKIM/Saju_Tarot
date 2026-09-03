@@ -100,6 +100,7 @@ export function mockReading(input: ReadingRequest): Reading {
       day: pillar(seed + 5, seed + 7),
       hour: hourKnown ? pillar(seed + 8, Number(input.birth_time!.slice(0, 2)) / 2) : null,
     },
+    period: { year_ko: '병오', month_ko: '병신', label: '2026년 9월 · 병오년 병신월' },
     elements: { ...counts, verdict },
     tarot,
     report: {

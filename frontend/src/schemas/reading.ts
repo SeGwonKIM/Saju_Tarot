@@ -174,6 +174,12 @@ export const readingSchema = z.object({
     수: z.number(),
     verdict: z.array(z.string()),
   }),
+  /** 이번 달 기운 — 세운·월운. 원국과 달리 달마다 바뀐다 (PRD §8.5) */
+  period: z.object({
+    year_ko: z.string(),
+    month_ko: z.string(),
+    label: z.string(),
+  }),
   /** 항상 3장 (PRD §8.6) */
   tarot: z
     .array(

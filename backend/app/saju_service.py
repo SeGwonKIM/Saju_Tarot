@@ -169,6 +169,36 @@ def build_chart(
     )
 
 
+@dataclass(frozen=True)
+class Period:
+    """조회 시점의 기운 — 세운(그 해)과 월운(그 달) (PRD §8.5).
+
+    원국은 평생 고정이고, 이 값이 달마다 바뀐다.
+    "이번 달 흐름"이라는 리포트의 근거가 바로 이것이다.
+    """
+
+    year: Pillar
+    month: Pillar
+    label: str
+    """사람이 읽는 표기 — 예: '2026년 9월 · 병오년 정유월'"""
+
+
+def current_period(now: datetime, jieqi_reference: datetime) -> Period:
+    """지금이 어느 세운·월운에 속하는지.
+
+    월운은 **절기 기준**으로 바뀐다(달력 1일이 아니다). 그래서 원국과 같은
+    라이브러리·같은 보정 규칙을 쓴다.
+    """
+    ec = _eight_char(jieqi_reference, "조자시")
+    year = _pillar(ec.getYear())
+    month = _pillar(ec.getMonth())
+    return Period(
+        year=year,
+        month=month,
+        label=f"{now.year}년 {now.month}월 · {year.ko}년 {month.ko}월",
+    )
+
+
 # 라이브러리 절기 테이블은 키가 두 가지로 섞여 나온다.
 #   같은 절기가 앞뒤 해에 걸쳐 두 번 등장하는데, 두 번째는 로마자 키로 온다.
 #   (예: '冬至' 2023-12-22 와 'DONG_ZHI' 2024-12-21)

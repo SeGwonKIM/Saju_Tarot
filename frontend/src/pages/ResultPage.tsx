@@ -34,7 +34,7 @@ export default function ResultPage() {
     )
   }
 
-  const { input_echo: echo, pillars, elements, tarot, report } = reading
+  const { input_echo: echo, pillars, elements, tarot, report, period } = reading
 
   return (
     <div className="min-h-screen bg-paper-50 pb-20 dark:bg-ink-950">
@@ -47,7 +47,8 @@ export default function ResultPage() {
           <h1 className="mt-4 font-display text-2xl font-bold text-paper-50">
             이번 달 흐름 리포트
           </h1>
-          <p className="mt-2 text-sm text-ink-300">
+          <p className="mt-2 text-sm font-medium text-gold-300">{period.label}</p>
+          <p className="mt-1 text-sm text-ink-300">
             {echo.solar_datetime.slice(0, 10)}
             {pillars.hour ? ` ${echo.solar_datetime.slice(11, 16)}` : ' (시간 미상)'} 기준
           </p>
@@ -118,7 +119,7 @@ export default function ResultPage() {
             뽑힌 카드
           </h2>
           <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-300">
-            세 장을 다섯 주제의 공통 근거로 읽습니다
+            세 장을 다섯 주제의 공통 근거로 읽습니다 · 이 달 안에는 카드가 바뀌지 않습니다
           </p>
           {/* 퍼블릭 도메인 이미지 출처 표기 (PRD §18.1 Q5) */}
           <p className="mt-1 text-[11px] text-ink-300 dark:text-ink-400">
@@ -185,6 +186,12 @@ export default function ResultPage() {
             <div className="flex justify-between gap-4">
               <dt>자시 기준</dt>
               <dd>{echo.midnight_rule}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>이번 달 기운</dt>
+              <dd>
+                세운 {period.year_ko}년 · 월운 {period.month_ko}월
+              </dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt>엔진 버전</dt>

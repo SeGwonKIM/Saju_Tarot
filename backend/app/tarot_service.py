@@ -7,6 +7,7 @@ seed 를 저장하면 같은 링크가 항상 같은 카드를 낸다 — 재현
 LLM 이 카드 뜻을 지어내지 않게 하려는 것이다 (PRD §8.6).
 """
 
+import hashlib
 import random
 from dataclasses import dataclass
 
@@ -123,6 +124,17 @@ def draw(seed: int) -> list[DrawnCard]:
     ]
 
 
-def new_seed() -> int:
-    """리포트마다 새로 만들고 DB 에 저장한다 (PRD §9 readings.tarot_seed)."""
-    return random.SystemRandom().randrange(2**62)
+def period_seed(birth_key: str, period_key: str) -> int:
+    """**같은 사람 + 같은 달 = 항상 같은 카드** (PRD §8.6 재현성).
+
+    난수로 매번 새로 뽑으면 손님이 새로고침할 때마다 카드가 달라진다.
+    상담 리포트로서 신뢰가 서지 않고, "이번 달 흐름"이라는 말과도 맞지 않는다.
+
+    그래서 seed 를 두 값에서 만든다.
+      birth_key  — 생년월일시·출생지 (평생 고정)
+      period_key — 그 시점의 세운·월운 간지 (달마다 바뀜, **절기 기준**)
+
+    달력 1일이 아니라 절입일에 카드가 바뀐다 — 월주가 바뀌는 시점과 같다.
+    """
+    digest = hashlib.sha256(f"{birth_key}|{period_key}".encode()).digest()
+    return int.from_bytes(digest[:8], "big") % (2**62)

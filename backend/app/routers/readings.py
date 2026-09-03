@@ -7,7 +7,7 @@
 입력 검증은 프론트와 **같은 규칙을 여기서 다시** 한다 (PRD §12.2 프론트는 못 믿는다).
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends
@@ -22,9 +22,9 @@ from ..report_service import (
     ReportGenerator,
     build_facts,
 )
-from ..saju_service import ELEMENTS, MidnightRule, build_chart
+from ..saju_service import ELEMENTS, MidnightRule, build_chart, current_period
 from ..tone_samples import is_active as tone_is_active
-from ..tarot_service import draw, new_seed
+from ..tarot_service import draw, period_seed
 
 router = APIRouter(prefix="/readings", tags=["readings"])
 
@@ -111,6 +111,15 @@ class PillarOut(BaseModel):
     ko: str
 
 
+KST = timezone(timedelta(hours=9))
+
+
+class PeriodOut(BaseModel):
+    year_ko: str
+    month_ko: str
+    label: str
+
+
 class InputEcho(BaseModel):
     solar_datetime: str
     true_solar_correction_min: int
@@ -157,6 +166,8 @@ class ReadingResponse(BaseModel):
     pillars: PillarsOut
     elements: ElementsOut
     tarot: list[TarotOut]
+    period: PeriodOut
+    """이번 달 기운 — 세운·월운. 원국과 달리 달마다 바뀐다 (PRD §8.5)"""
     report: ReportOut | None = None
     """생성 실패·키 없음이면 null — 계산 결과만 보여준다 (PRD §11.3 부분 성공)"""
     report_model: str | None = None
@@ -200,7 +211,14 @@ def create_reading(
         midnight_rule=rule,
     )
 
-    seed = new_seed()
+    # 이번 달 기운 — 절기 기준으로 바뀐다 (PRD §8.5)
+    now = datetime.now(KST).replace(tzinfo=None)
+    now_corrected = correct(now, longitude)
+    period = current_period(now, now_corrected.jieqi_reference)
+
+    # 같은 사람 + 같은 달이면 항상 같은 카드 (PRD §8.6)
+    birth_key = f"{solar.isoformat()}|{body.birth_time or 'unknown'}|{body.birth_place}"
+    seed = period_seed(birth_key, f"{period.year.ko}|{period.month.ko}")
     cards = draw(seed)
     tarot_out = [TarotOut(**c.__dict__) for c in cards]
 
@@ -215,6 +233,7 @@ def create_reading(
         elements=chart.elements.counts,
         verdict=chart.elements.verdict,
         tarot=[c.model_dump() for c in tarot_out],
+        period=period.label,
         basis=(
             f"{corrected.clock.isoformat(timespec='minutes')} "
             f"(진태양시 {corrected.true_solar_correction_min}분 보정, "
@@ -243,6 +262,9 @@ def create_reading(
             verdict=chart.elements.verdict,
         ),
         tarot=tarot_out,
+        period=PeriodOut(
+            year_ko=period.year.ko, month_ko=period.month.ko, label=period.label
+        ),
         report=ReportOut(
             monthly_flow=report.monthly_flow,
             advice=report.advice,
