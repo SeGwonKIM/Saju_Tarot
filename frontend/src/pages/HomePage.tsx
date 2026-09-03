@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import BirthForm from '../components/form/BirthForm'
+import MysticVisual from '../components/MysticVisual'
 import { createReading, getHealth, usingMock } from '../api/readings'
 import { saveReading } from '../lib/store'
 import type { ReadingRequest } from '../schemas/reading'
@@ -68,7 +69,8 @@ export default function HomePage() {
           className="absolute -top-32 left-1/2 size-[28rem] -translate-x-1/2 rounded-full bg-gold-500/12 blur-3xl"
           aria-hidden="true"
         />
-        <div className="relative mx-auto max-w-5xl px-5 py-16 sm:py-24">
+        <div className="relative mx-auto grid max-w-5xl items-center gap-10 px-5 py-16 sm:py-24 lg:grid-cols-[1.05fr_1fr] lg:gap-8">
+          <div>
           <p className="rise mb-5 inline-flex items-center gap-2 rounded-full border border-gold-400/30 bg-gold-400/8 px-3.5 py-1.5 text-xs text-gold-300">
             <span aria-hidden="true">✦</span>
             사주팔자 · 타로 · 오행을 한 번에
@@ -96,9 +98,18 @@ export default function HomePage() {
             </a>
             <span className="text-sm text-ink-400">3분 · 회원가입 없이</span>
           </div>
+          </div>
 
-          {/* 신뢰 요소 */}
-          <dl className="mt-14 grid gap-4 border-t border-ink-800 pt-8 sm:grid-cols-3">
+          {/* 동양의 사주 + 서양의 타로 */}
+          <div className="rise order-first lg:order-none">
+            <MysticVisual />
+          </div>
+
+        </div>
+
+        {/* 신뢰 요소 */}
+        <div className="relative mx-auto max-w-5xl px-5 pb-16 sm:pb-20">
+          <dl className="grid gap-4 border-t border-ink-800 pt-8 sm:grid-cols-3">
             {[
               { t: '만세력 기준 계산', d: '절기와 진태양시까지 보정해 원국을 세웁니다' },
               { t: '90일 뒤 자동 삭제', d: '생년월일은 리포트 생성에만 쓰고 지웁니다' },
