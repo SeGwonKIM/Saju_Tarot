@@ -101,6 +101,17 @@ export default function BirthForm({
       }
       setErrors(next)
       setTouched({ name: true, gender: true, topics: true, privacy_agreed: true })
+
+      // 빠진 칸으로 데려간다 — 버튼만 안 눌리면 어디가 문제인지 알 수 없다
+      const firstKey = Object.keys(next)[0]
+      const target =
+        firstKey === 'name'
+          ? document.getElementById('name')
+          : firstKey === 'privacy_agreed'
+            ? document.getElementById('agree')
+            : document.querySelector(`[data-field="${firstKey}"]`)
+      target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      if (target instanceof HTMLInputElement) target.focus({ preventScroll: true })
       return
     }
     setErrors({})
@@ -143,12 +154,14 @@ export default function BirthForm({
             error={touched.gender ? errors.gender : undefined}
             hint="대운의 방향을 정하는 데 쓰입니다"
           >
+            <div data-field="gender">
             <Segmented
               ariaLabel="성별"
               value={gender}
               onChange={(v) => setGender(v)}
               options={GENDERS.map((g) => ({ value: g, label: g }))}
             />
+            </div>
           </Field>
         </fieldset>
 
@@ -299,7 +312,7 @@ export default function BirthForm({
             error={touched.topics ? errors.topics : undefined}
             hint={`${topics.length}/${MAX_TOPICS} 선택 · 고른 주제만 담깁니다`}
           >
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2" data-field="topics">
               {TOPICS.map((t) => (
                 <Chip
                   key={t}
@@ -345,17 +358,30 @@ export default function BirthForm({
 
           <button
             type="submit"
-            disabled={!ready || submitting}
-            className="w-full rounded-xl bg-gradient-to-b from-ink-800 to-ink-900 px-6 py-4 text-base font-semibold text-paper-50 shadow-lg transition-all hover:from-ink-700 hover:to-ink-800 disabled:cursor-not-allowed disabled:from-paper-300 disabled:to-paper-300 disabled:text-ink-400 disabled:shadow-none dark:from-gold-500 dark:to-gold-600 dark:text-ink-950 dark:hover:from-gold-400 dark:hover:to-gold-500 dark:disabled:from-ink-800 dark:disabled:to-ink-800 dark:disabled:text-ink-400"
+            disabled={submitting}
+            className={[
+              'w-full rounded-xl px-6 py-4 text-base font-semibold shadow-lg transition-all',
+              'disabled:cursor-wait disabled:opacity-70',
+              ready
+                ? 'bg-gradient-to-b from-ink-800 to-ink-900 text-paper-50 hover:from-ink-700 hover:to-ink-800 dark:from-gold-500 dark:to-gold-600 dark:text-ink-950 dark:hover:from-gold-400 dark:hover:to-gold-500'
+                : 'bg-gradient-to-b from-ink-700/70 to-ink-800/70 text-paper-100 hover:from-ink-700 hover:to-ink-800 dark:from-gold-600/60 dark:to-gold-600/60 dark:text-ink-950',
+            ].join(' ')}
           >
             {submitting ? '사주팔자를 세우는 중…' : '리포트 만들기'}
           </button>
 
           {/* 무엇이 남았는지 알려준다 (PRD §6.1) */}
           <p className="text-center text-xs text-ink-400 dark:text-ink-300">
-            {ready
-              ? '입력하신 정보는 리포트 생성에만 쓰입니다'
-              : `${missing.join(' · ')}${eulReul(missing[missing.length - 1])} 입력하면 시작할 수 있어요`}
+            {ready ? (
+              '입력하신 정보는 리포트 생성에만 쓰입니다'
+            ) : (
+              <>
+                <strong className="font-semibold text-ink-600 dark:text-ink-200">
+                  {missing.join(' · ')}
+                </strong>
+                {eulReul(missing[missing.length - 1])} 입력하면 시작할 수 있어요
+              </>
+            )}
           </p>
         </div>
       </form>

@@ -73,15 +73,17 @@ export default function HomePage() {
             <span aria-hidden="true">✦</span>
             사주팔자 · 타로 · 오행을 한 번에
           </p>
-          <h1 className="rise font-display text-4xl leading-[1.25] font-bold tracking-tight sm:text-5xl sm:leading-[1.2]">
-            이번 달, 어떻게
+          <h1 className="rise font-display text-3xl leading-[1.3] font-bold tracking-tight sm:text-[2.75rem] sm:leading-[1.25]">
+            당신의 운세,
             <br />
-            흘러갈까요?
+            사주와 타로로
+            <br />
+            정확하게 집어드립니다
           </h1>
           <p className="rise mt-6 max-w-xl text-base leading-relaxed text-ink-300 sm:text-lg">
             이름과 태어난 시간만 알려주시면, 사주팔자와 타로를 함께 읽어
             <strong className="font-semibold text-paper-100"> 이번 달 흐름 세 줄</strong>과
-            <strong className="font-semibold text-paper-100"> 연애·직업·재물 조언</strong>을
+            <strong className="font-semibold text-paper-100"> 재회운·상대방속마음·연애·재물·대인관계 조언</strong>을
             한 장으로 정리해 드립니다.
           </p>
 
@@ -126,12 +128,12 @@ export default function HomePage() {
             {
               n: '02',
               t: '타로 세 장',
-              d: '고르신 주제마다 한 장씩. 정방향·역방향과 카드의 뜻을 함께 적어 드립니다.',
+              d: '지금 놓인 자리·지금 할 수 있는 것·이대로 가면. 세 장을 모든 주제의 공통 근거로 읽습니다.',
             },
             {
               n: '03',
               t: '이번 달 흐름과 조언',
-              d: '길게 늘이지 않습니다. 흐름 세 줄과 주제별 조언 한 줄씩으로 정리합니다.',
+              d: '길게 늘이지 않습니다. 흐름 세 줄과 고르신 주제마다 조언 한 줄씩으로 정리합니다.',
             },
           ].map((s) => (
             <li
