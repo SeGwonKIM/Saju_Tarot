@@ -1,9 +1,11 @@
 # PRD §12.16 — 버전 고정. 신규 패키지는 실존 여부·다운로드 수 확인 후 추가할 것.
-fastapi==0.115.6
+# 취약점 점검:  ./.venv/Scripts/python.exe -m pip_audit
+fastapi==0.141.1
+starlette==1.6.0          # 0.41.3 에 취약점 9건 → 올림 (PYSEC-2026-161 등)
 uvicorn[standard]==0.34.0
 pydantic==2.10.4
 pydantic-settings==2.7.0
-python-dotenv==1.0.1
+python-dotenv==1.2.3      # 1.0.1 취약점 (PYSEC-2026-2270)
 
 # 만세력 — 음↔양 변환 (PRD §8.1). 없는 윤달에도 True를 반환하므로 왕복 검증 필수
 korean-lunar-calendar==0.3.1
@@ -12,7 +14,10 @@ korean-lunar-calendar==0.3.1
 # app/korea_time.py 의 보정 레이어를 반드시 거쳐서 넣어야 한다
 lunar-python==1.4.8
 
+# 리포트 문장 생성 (PRD §11)
+anthropic==1.3.0
+
 # 개발·테스트
-pytest==8.3.4
+pytest==9.1.1             # 8.3.4 취약점 (PYSEC-2026-1845)
 httpx==0.28.1
 pip-audit==2.7.3

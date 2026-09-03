@@ -34,7 +34,8 @@ done <<< "$staged"
 #     .env.example 과 이 훅 자신은 검사 대상에서 제외(패턴 문자열 포함)
 patterns=(
   'sk-ant-[A-Za-z0-9_-]{20,}'                 # Anthropic API 키
-  'sk-[A-Za-z0-9]{32,}'                       # 일반 LLM API 키
+  'sk-proj-[A-Za-z0-9_-]{20,}'                # OpenAI 프로젝트 키 (하이픈이 있어 아래 패턴에 안 걸린다)
+  'sk-[A-Za-z0-9_-]{20,}'                     # 그 외 sk- 계열 (하이픈·밑줄 포함)
   'eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}'  # JWT (supabase service_role 등)
   'AKIA[0-9A-Z]{16}'                          # AWS Access Key
   'gh[pousr]_[A-Za-z0-9]{20,}'                # GitHub 토큰
