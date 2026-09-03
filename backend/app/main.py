@@ -16,6 +16,7 @@ from .calendar_service import CalendarError
 from .config import get_settings
 from .logging_setup import setup_logging
 from .routers import calendar as calendar_router
+from .routers import readings as readings_router
 
 settings = get_settings()          # ← 환경변수가 잘못되면 여기서 부팅 실패
 setup_logging()
@@ -109,3 +110,4 @@ async def health() -> dict[str, str]:
 
 
 app.include_router(calendar_router.router, prefix="/api/v1")
+app.include_router(readings_router.router, prefix="/api/v1")

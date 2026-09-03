@@ -92,6 +92,7 @@ export function mockReading(input: ReadingRequest): Reading {
       true_solar_correction_min: -32,
       dst_applied: false,
       midnight_rule: '조자시',
+      standard_meridian: 135.0,
     },
     pillars: {
       year: pillar(seed, seed + 4),
@@ -112,6 +113,7 @@ export function mockReading(input: ReadingRequest): Reading {
       disclaimer: '이 리포트는 상담 참고용이며 의료·법률·투자 판단의 근거가 아닙니다.',
     },
     engine_version: 'mock-0.1.0',
+    tarot_seed: seed,
     draft_before_tone_learning: true,
   }
 }

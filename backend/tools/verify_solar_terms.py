@@ -9,12 +9,14 @@
   KASI 가 발표한 한국 기준 시각과 **분 단위로 일치**해야 한다.
   어긋나는 절기만 목록으로 뽑아 보정 테이블에 넣는다.
 
+키를 넣는 곳 (둘 중 하나, PRD §12.1)
+  ① backend/.env 에  KASI_SERVICE_KEY=발급받은키   ← 이 파일은 .gitignore 로 막혀 있다
+  ② 셸 환경변수      $env:KASI_SERVICE_KEY="..."   ← 그 셸에서만 유효
+
 실행
-  # 공공데이터포털(data.go.kr)에서 '천문연구원 특일 정보/24절기' 서비스 키를 받아
-  export KASI_SERVICE_KEY=...        # PowerShell: $env:KASI_SERVICE_KEY="..."
   python tools/verify_solar_terms.py --from 1950 --to 2050
 
-키는 환경변수로만 받는다. 코드·저장소에 넣지 않는다 (PRD §12.1).
+키를 코드·저장소에 넣지 않는다. pre-commit 훅이 실수로 커밋되는 것도 막는다.
 결과는 tools/solar_term_diff.json 에 저장된다.
 """
 
@@ -30,12 +32,15 @@ from datetime import datetime
 from pathlib import Path
 from xml.etree import ElementTree
 
+from dotenv import load_dotenv
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.saju_service import solar_term_table  # noqa: E402
 
 KASI_URL = "https://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService/get24DivisionsInfo"
 OUT_PATH = Path(__file__).parent / "solar_term_diff.json"
+ENV_PATH = Path(__file__).resolve().parents[1] / ".env"
 
 # KASI 응답의 절기 이름(한글) → 라이브러리 키(간체자). 라이브러리가 간체를 쓴다.
 NAME_MAP = {
@@ -151,11 +156,20 @@ def main() -> int:
     ap.add_argument("--to", dest="end", type=int, default=2050)
     args = ap.parse_args()
 
-    key = os.environ.get("KASI_SERVICE_KEY")
-    if not key:
-        print("KASI_SERVICE_KEY 환경변수가 없습니다.")
-        print("공공데이터포털(data.go.kr)에서 '24절기 정보' 서비스 키를 받아 설정하세요.")
-        print('  PowerShell:  $env:KASI_SERVICE_KEY="..."')
+    # backend/.env 를 읽는다. 셸 환경변수가 이미 있으면 그쪽이 이긴다.
+    load_dotenv(ENV_PATH, override=False)
+
+    key = os.environ.get("KASI_SERVICE_KEY", "").strip()
+    if not key or key == "CHANGE_ME":
+        print("KASI_SERVICE_KEY 가 없습니다. 둘 중 하나로 넣으세요.")
+        print()
+        print(f"  ① 파일 (권장):  {ENV_PATH}")
+        print("     KASI_SERVICE_KEY=발급받은키          ← 이 한 줄만 추가")
+        print()
+        print("  ② 이 셸에서만:  $env:KASI_SERVICE_KEY=\"발급받은키\"")
+        print()
+        print("공공데이터포털 → 한국천문연구원_특일 정보 → 활용신청(자동승인)")
+        print("→ 마이페이지 → 개발계정 → 일반 인증키(Decoding) 값을 씁니다.")
         return 2
 
     all_diffs: list[dict[str, object]] = []

@@ -61,7 +61,9 @@ cp .env.example frontend/.env          # VITE_ 로 시작하는 항목만 남긴
 - [x] 3단계 — 음↔양 변환 API (`POST /calendar/convert`, `GET /calendar/lunar-year/{year}`)
 - [x] 4단계 — 만세력 엔진 (한국 시간대 보정 + `lunar-python` 연결 + 불변식 테스트)
 - [ ] 4b단계 — KASI 절기 전수 대조 (서비스 키 필요, 아래 참고)
-- [ ] 5단계 — `POST /readings` 계산 결과 연결
+- [x] 5단계 — `POST /readings` 실제 계산 연결 (목업 스위치 off)
+- [x] 6단계 — 타로 엔진 + 카드 마스터 78장
+- [ ] 7단계 — LLM 리포트 생성
 
 ## KASI 절기 대조 (4b단계)
 

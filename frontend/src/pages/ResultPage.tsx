@@ -60,8 +60,8 @@ export default function ResultPage() {
             role="alert"
             className="rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
           >
-            해석 문장을 만드는 데 실패했습니다. 계산 결과는 아래에 그대로 있으니, 잠시 후 다시
-            시도해 주세요.
+            해석 문장이 아직 없습니다. 아래 계산 결과(원국·오행·타로)는 실제 값이며,
+            문장 생성은 다음 단계에서 붙습니다.
           </div>
         )}
 
@@ -173,6 +173,10 @@ export default function ResultPage() {
             <div className="flex justify-between gap-4">
               <dt>서머타임</dt>
               <dd>{echo.dst_applied ? '적용' : '미적용'}</dd>
+            </div>
+            <div className="flex justify-between gap-4">
+              <dt>표준자오선</dt>
+              <dd className="tabular-nums">동경 {echo.standard_meridian}°</dd>
             </div>
             <div className="flex justify-between gap-4">
               <dt>자시 기준</dt>

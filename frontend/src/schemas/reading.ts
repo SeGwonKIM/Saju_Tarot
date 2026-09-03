@@ -135,6 +135,7 @@ export const readingSchema = z.object({
     true_solar_correction_min: z.number(),
     dst_applied: z.boolean(),
     midnight_rule: z.string(),
+    standard_meridian: z.number(),
   }),
   pillars: z.object({
     year: pillarSchema,
@@ -174,6 +175,8 @@ export const readingSchema = z.object({
     })
     .nullable(),
   engine_version: z.string(),
+  /** 같은 링크가 항상 같은 카드를 내도록 저장한다 (PRD §8.6) */
+  tarot_seed: z.number().optional(),
   /** 문체 학습(Q7) 전 초안임을 표시 (PRD §11.5) */
   draft_before_tone_learning: z.boolean(),
 })
