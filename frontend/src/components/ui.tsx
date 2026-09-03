@@ -88,10 +88,13 @@ export function Segmented<T extends string>({
 
 export function Chip({
   label,
+  sub,
   active,
   onClick,
 }: {
   label: string
+  /** 손님이 실제로 묻는 말 — 주제 이름만으로는 뭘 고르는지 감이 안 온다 */
+  sub?: string
   active: boolean
   onClick: () => void
 }) {
@@ -101,14 +104,21 @@ export function Chip({
       aria-pressed={active}
       onClick={onClick}
       className={[
-        'rounded-full border px-4 py-2 text-sm transition-all',
+        'rounded-xl border px-4 py-3 text-left transition-all',
         active
-          ? 'border-gold-500 bg-gold-500/12 font-semibold text-gold-700 dark:border-gold-400 dark:text-gold-300'
+          ? 'border-gold-500 bg-gold-500/10 text-gold-700 dark:border-gold-400 dark:bg-gold-400/10 dark:text-gold-300'
           : 'border-paper-300 text-ink-500 hover:border-ink-300 dark:border-ink-700 dark:text-ink-300',
       ].join(' ')}
     >
-      {active && <span aria-hidden="true">✓ </span>}
-      {label}
+      <span className="flex items-center gap-1.5 text-sm font-semibold">
+        <span aria-hidden="true" className={active ? '' : 'opacity-25'}>
+          ✓
+        </span>
+        {label}
+      </span>
+      {sub && (
+        <span className="mt-1 block text-xs leading-snug opacity-70">&ldquo;{sub}&rdquo;</span>
+      )}
     </button>
   )
 }

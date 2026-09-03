@@ -117,12 +117,13 @@ export default function ResultPage() {
           <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
             뽑힌 카드
           </h2>
-          <div
-            className="mt-5 grid gap-5"
-            style={{ gridTemplateColumns: `repeat(${Math.min(tarot.length, 3)}, minmax(0,1fr))` }}
-          >
+          <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-300">
+            세 장을 다섯 주제의 공통 근거로 읽습니다
+          </p>
+          {/* 3장 고정 스프레드 (PRD §8.6) */}
+          <div className="mt-5 grid grid-cols-3 gap-4">
             {tarot.map((c) => (
-              <TarotCard key={c.category} card={c} />
+              <TarotCard key={c.position} card={c} />
             ))}
           </div>
         </Card>

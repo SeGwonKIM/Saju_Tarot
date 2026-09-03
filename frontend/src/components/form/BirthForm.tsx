@@ -10,7 +10,9 @@ import {
   BIRTH_PLACES,
   CALENDAR_TYPES,
   GENDERS,
+  MAX_TOPICS,
   TOPICS,
+  TOPIC_META,
   readingInputSchema,
   type ReadingInput,
   type ReadingRequest,
@@ -289,13 +291,14 @@ export default function BirthForm({
             label="상담 주제"
             required
             error={touched.topics ? errors.topics : undefined}
-            hint="고른 주제만 리포트에 담깁니다"
+            hint={`${topics.length}/${MAX_TOPICS} 선택 · 고른 주제만 담깁니다`}
           >
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               {TOPICS.map((t) => (
                 <Chip
                   key={t}
                   label={t}
+                  sub={TOPIC_META[t].question}
                   active={topics.includes(t)}
                   onClick={() =>
                     setTopics((prev) =>
@@ -305,6 +308,19 @@ export default function BirthForm({
                 />
               ))}
             </div>
+
+            {/* 상대의 사주 없이 읽는 주제는 한계를 미리 밝힌다 (PRD §3.4) */}
+            {topics.some((t) => TOPIC_META[t].caveat) && (
+              <ul className="rise mt-1 space-y-1 rounded-xl bg-plum-500/8 px-4 py-3 text-xs leading-relaxed text-ink-600 dark:bg-plum-400/12 dark:text-ink-300">
+                {topics
+                  .filter((t) => TOPIC_META[t].caveat)
+                  .map((t) => (
+                    <li key={t}>
+                      <strong className="font-semibold">{t}</strong> — {TOPIC_META[t].caveat}
+                    </li>
+                  ))}
+              </ul>
+            )}
           </Field>
         </fieldset>
 

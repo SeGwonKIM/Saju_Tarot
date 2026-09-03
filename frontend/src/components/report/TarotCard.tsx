@@ -23,7 +23,9 @@ export default function TarotCard({ card }: { card: Card }) {
         </span>
       </div>
       <figcaption className="text-center">
-        <div className="text-xs font-medium text-gold-600 dark:text-gold-400">{card.category}</div>
+        <div className="text-xs font-medium text-gold-600 dark:text-gold-400">
+          {card.position_ko}
+        </div>
         <div className="mt-0.5 font-display text-sm font-bold text-ink-900 dark:text-paper-100">
           {card.card_ko}
         </div>
