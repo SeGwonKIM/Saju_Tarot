@@ -1,0 +1,11 @@
+# PRD §12.16 — 버전 고정. 신규 패키지는 실존 여부·다운로드 수 확인 후 추가할 것.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+
+# 개발·테스트
+pytest==8.3.4
+httpx==0.28.1
+pip-audit==2.7.3

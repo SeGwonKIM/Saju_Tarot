@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# ============================================================
+#  비밀값 유출 차단 — 1차 방어 (PRD §12.11 ①)
+#  커밋되기 전에 스테이징된 내용을 검사하고, 걸리면 커밋을 거부한다.
+#
+#  설치:  git config core.hooksPath .githooks
+#  우회:  git commit --no-verify   ← 정말 필요할 때만. 이유를 남길 것.
+# ============================================================
+set -uo pipefail
+
+RED=$'\033[31m'; YEL=$'\033[33m'; GRN=$'\033[32m'; OFF=$'\033[0m'
+fail=0
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged" ] && exit 0
+
+# ── 1. .env 파일 자체가 올라가는가 ───────────────────────────
+while IFS= read -r f; do
+  case "$(basename "$f")" in
+    .env|.env.*)
+      if [ "$(basename "$f")" != ".env.example" ]; then
+        echo "${RED}✖ 차단: $f — .env 파일은 커밋할 수 없습니다.${OFF}"
+        fail=1
+      fi
+      ;;
+    *.pem|*.key|*.p12|*.pfx)
+      echo "${RED}✖ 차단: $f — 키 파일은 커밋할 수 없습니다.${OFF}"
+      fail=1
+      ;;
+  esac
+done <<< "$staged"
+
+# ── 2. 스테이징된 내용에 비밀값 패턴이 있는가 ────────────────
+#     .env.example 과 이 훅 자신은 검사 대상에서 제외(패턴 문자열 포함)
+patterns=(
+  'sk-ant-[A-Za-z0-9_-]{20,}'                 # Anthropic API 키
+  'sk-[A-Za-z0-9]{32,}'                       # 일반 LLM API 키
+  'eyJ[A-Za-z0-9_-]{20,}\.eyJ[A-Za-z0-9_-]{20,}'  # JWT (supabase service_role 등)
+  'AKIA[0-9A-Z]{16}'                          # AWS Access Key
+  'gh[pousr]_[A-Za-z0-9]{20,}'                # GitHub 토큰
+  '-----BEGIN [A-Z ]*PRIVATE KEY-----'        # 개인키
+  'postgres(ql)?://[^:]+:[^@]+@'              # 접속 문자열 안의 비밀번호
+)
+
+for f in $staged; do
+  case "$f" in
+    .env.example|.githooks/*|*.md) continue ;;
+  esac
+  content=$(git show ":$f" 2>/dev/null) || continue
+  for p in "${patterns[@]}"; do
+    if echo "$content" | grep -Eq -- "$p"; then
+      echo "${RED}✖ 차단: $f 안에서 비밀값으로 보이는 문자열이 발견됐습니다.${OFF}"
+      echo "${YEL}   패턴: $p${OFF}"
+      echo "${YEL}   → 값을 환경변수로 빼고 .env(커밋 안 됨)에 넣으세요.${OFF}"
+      fail=1
+    fi
+  done
+done
+
+# ── 3. gitleaks 가 설치돼 있으면 한 번 더 ────────────────────
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner || fail=1
+fi
+
+if [ "$fail" -ne 0 ]; then
+  echo ""
+  echo "${RED}커밋을 중단했습니다. (PRD §12.11 1차 방어)${OFF}"
+  echo "${YEL}이미 커밋·푸시된 뒤라면: 파일 삭제보다 ${RED}키 폐기(revoke)${YEL}가 먼저입니다 — PRD §12.12 런북${OFF}"
+  exit 1
+fi
+
+echo "${GRN}✓ 비밀값 검사 통과${OFF}"
+exit 0

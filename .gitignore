@@ -1,0 +1,47 @@
+# ── 비밀값 (PRD §12.1) ──────────────────────────────
+# .env 계열은 전부 차단하고, 예시 파일만 예외로 허용한다
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# ── Python / FastAPI ────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# ── Node / Vite ─────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# ── 에디터 / OS ─────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── 로그 · 임시 ─────────────────────────────────────
+*.log
+npm-debug.log*
+logs/
+tmp/
+
+# ── 백업 (개인정보 포함 — 절대 커밋 금지, PRD §12.17) ─
+backups/
+*.dump
+*.sql.gz
+
+# TypeScript 증분 빌드 캐시
+*.tsbuildinfo
