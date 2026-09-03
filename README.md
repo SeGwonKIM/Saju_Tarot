@@ -50,9 +50,27 @@ cp .env.example frontend/.env          # VITE_ 로 시작하는 항목만 남긴
 
 문장 품질을 올리는 가장 큰 항목입니다. 규칙만으로는 모델이 일반론을 씁니다.
 
-1. `backend\data	one_samples.example.md` 를 같은 폴더에 `tone_samples.md` 로 복사
-2. 실제로 손님에게 보낸 문장을 **5건 이상** 채우기 (이름·생년월일·연락처는 지우고)
-3. 서버 재시작 — 자동 적용되고 리포트의 "문체 학습 전 초안" 표시가 사라집니다
+**방법 1 — 명령으로 넣기 (권장, 인코딩 사고 없음)**
+
+```bash
+cd backend
+.\.venv\Scripts\python.exe toolsdd_sample.py add 재회운 "지금 먼저 연락하시는 건 권하지 않습니다."
+.\.venv\Scripts\python.exe toolsdd_sample.py list      # 몇 건인지·적용됐는지 확인
+.\.venv\Scripts\python.exe toolsdd_sample.py remove 3  # 번호로 삭제
+.\.venv\Scripts\python.exe toolsdd_sample.py clear     # 예시 지우고 처음부터
+```
+
+주제는 `재회운 | 상대방속마음 | 연애 | 재물 | 대인관계` 또는 `-`(주제 없음).
+
+**방법 2 — 파일 직접 편집**
+
+`backend\data	one_samples.md` 를 열어 `## 사례 N` / `주제:` / `문장:` 세 줄씩 적습니다.
+메모장에서 저장할 때 **인코딩을 UTF-8** 로 하세요(ANSI 로 저장하면 파일 전체가 무시됩니다).
+
+**공통**
+- 전체 합계 **5건 이상**이면 적용됩니다 (주제별 5건이 아닙니다)
+- 이름·생년월일·연락처는 지우고 넣으세요 — 남아 있으면 그 문장을 버립니다
+- 서버 재시작하면 반영되고 리포트의 "문체 학습 전 초안" 표시가 사라집니다
 
 `tone_samples.md` 는 git 에 올라가지 않습니다. 개인정보로 보이는 문장은 로딩 시 걸러냅니다.
 

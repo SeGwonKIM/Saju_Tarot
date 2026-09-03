@@ -66,7 +66,15 @@ def load() -> list[ToneSample]:
     if not SAMPLES_PATH.exists():
         return []
     try:
-        raw = SAMPLES_PATH.read_text(encoding="utf-8")
+        # utf-8-sig: 메모장이 붙이는 BOM 을 함께 벗겨낸다.
+        # 인코딩이 어긋나도(메모장에서 ANSI 로 저장 등) 예외가 리포트 생성을 막으면 안 된다.
+        raw = SAMPLES_PATH.read_text(encoding="utf-8-sig")
+    except UnicodeDecodeError:
+        log.warning(
+            "말투 샘플 파일의 인코딩이 UTF-8 이 아닙니다. "
+            "메모장에서 [다른 이름으로 저장] → 인코딩 'UTF-8' 로 다시 저장하세요."
+        )
+        return []
     except OSError as e:
         log.warning("말투 샘플을 읽지 못했습니다: %s", type(e).__name__)
         return []

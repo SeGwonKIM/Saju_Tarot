@@ -109,3 +109,22 @@ def test_example_file_is_committed_and_parseable():
     assert example.exists()
     samples = tone_samples.parse(example.read_text(encoding="utf-8"))
     assert len(samples) >= tone_samples.MIN_SAMPLES
+
+
+def test_ansi_encoded_file_does_not_crash(monkeypatch, tmp_path):
+    """메모장에서 ANSI 로 저장하면 UTF-8 로 못 읽는다 — 그래도 리포트 생성이 죽으면 안 된다."""
+    p = tmp_path / "tone_samples.md"
+    p.write_bytes("## 사례 1\n문장: 한글 문장입니다.\n".encode("cp949"))
+    monkeypatch.setattr(tone_samples, "SAMPLES_PATH", p)
+    assert tone_samples.load() == []       # 예외가 아니라 빈 목록
+    assert tone_samples.is_active() is False
+
+
+def test_bom_is_stripped(monkeypatch, tmp_path):
+    """메모장이 붙이는 BOM 때문에 첫 사례가 사라지면 안 된다."""
+    p = tmp_path / "tone_samples.md"
+    p.write_text(SAMPLE_MD, encoding="utf-8-sig")   # BOM 붙여 저장
+    monkeypatch.setattr(tone_samples, "SAMPLES_PATH", p)
+    samples = tone_samples.load()
+    assert len(samples) == 5
+    assert samples[0].topic == "재회운"             # BOM 이 남으면 여기가 None 이 된다
