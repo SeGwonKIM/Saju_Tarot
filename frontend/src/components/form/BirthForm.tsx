@@ -7,10 +7,12 @@
  */
 import { useState } from 'react'
 import {
+  BIRTH_PLACES,
   CALENDAR_TYPES,
   GENDERS,
   MAX_TOPICS,
   TOPICS,
+  correctionMinutes,
   TOPIC_META,
   readingInputSchema,
   type ReadingInput,
@@ -44,6 +46,7 @@ export default function BirthForm({
   const [minute, setMinute] = useState('00')
   const [jiji, setJiji] = useState('11:30')
   const [timeUnknown, setTimeUnknown] = useState(false)
+  const [place, setPlace] = useState('서울')
   const [topics, setTopics] = useState<Topic[]>([...TOPICS])
   const [agreed, setAgreed] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
@@ -61,6 +64,10 @@ export default function BirthForm({
     : new Date(Number(year), Number(month), 0).getDate()
 
   const showLeap = isLunar && Boolean(monthInfo?.has_leap)
+
+  const placeCorrection = correctionMinutes(
+    BIRTH_PLACES.find((p) => p.name === place)?.longitude ?? 126.978,
+  )
 
   const birthDate = `${year}-${String(month).padStart(2, '0')}-${String(
     Math.min(Number(day), maxDay),
@@ -87,7 +94,7 @@ export default function BirthForm({
       birth_date: birthDate,
       is_leap_month: showLeap ? isLeapMonth : false,
       birth_time: birthTime,
-      birth_place: '서울',
+      birth_place: place,
       topics,
       tarot_mode: 'auto' as const,
       privacy_agreed: agreed,
@@ -297,6 +304,21 @@ export default function BirthForm({
             </div>
           </Field>
 
+          <Field
+            label="태어난 곳"
+            hint={timeUnknown ? '시각을 모르면 쓰이지 않습니다' : `진태양시 ${placeCorrection}분 보정`}
+          >
+            <Select ariaLabel="태어난 곳" value={place} onChange={setPlace}>
+              {BIRTH_PLACES.map((p) => (
+                <option key={p.name} value={p.name}>
+                  {p.name}
+                </option>
+              ))}
+            </Select>
+            <p className="pt-1 text-xs text-ink-400 dark:text-ink-300">
+              시계 시각을 태양 기준으로 맞춥니다. 도(道)는 도청 소재지 기준입니다.
+            </p>
+          </Field>
         </fieldset>
 
         <hr className="border-paper-200 dark:border-ink-800" />

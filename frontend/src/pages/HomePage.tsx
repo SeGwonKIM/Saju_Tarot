@@ -81,7 +81,7 @@ export default function HomePage() {
             정확하게 집어드립니다
           </h1>
           <p className="rise mt-6 max-w-xl text-base leading-relaxed text-ink-300 sm:text-lg">
-            이름과 태어난 시간만 알려주시면, 사주팔자와 타로를 함께 읽어
+            이름과 태어난 장소, 시간만 알려주시면 사주팔자와 타로를 함께 읽어
             <strong className="font-semibold text-paper-100"> 이번 달 흐름 세 줄</strong>과
             <strong className="font-semibold text-paper-100"> 재회운·상대방속마음·연애·재물·대인관계 조언</strong>을
             한 장으로 정리해 드립니다.

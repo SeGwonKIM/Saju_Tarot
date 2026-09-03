@@ -59,19 +59,41 @@ export const SPREAD_POSITIONS = ['현재', '조언', '방향'] as const
 export type SpreadPosition = (typeof SPREAD_POSITIONS)[number]
 export type ElementName = (typeof ELEMENTS)[number]
 
-/** 출생지 — 진태양시 보정용 경도 (PRD §8.2) */
+/**
+ * 출생지 — 진태양시 보정용 경도 (PRD §8.2, §6.1 필드 7).
+ *
+ * 17개 시·도 전체. 도(道)는 **도청 소재지 기준 근사값**이다.
+ * 같은 도 안에서도 동서로 벌어지면 몇 분 차이가 나지만, 시주는 2시간 단위로
+ * 갈리므로 도 단위면 충분하다. 필요해지면 시·군 단위로 늘리면 된다.
+ *
+ * ⚠️ 서버(`backend/app/routers/readings.py` BIRTH_PLACES)와 **이름이 정확히 같아야** 한다.
+ *    서버가 화이트리스트로 검증하므로 하나라도 다르면 400 이 난다.
+ */
 export const BIRTH_PLACES = [
   { name: '서울', longitude: 126.978 },
+  { name: '경기(수원)', longitude: 127.01 },
   { name: '인천', longitude: 126.705 },
+  { name: '강원(춘천)', longitude: 127.729 },
+  { name: '충북(청주)', longitude: 127.489 },
+  { name: '충남(홍성)', longitude: 126.661 },
+  { name: '세종', longitude: 127.289 },
   { name: '대전', longitude: 127.385 },
-  { name: '대구', longitude: 128.601 },
+  { name: '전북(전주)', longitude: 127.148 },
+  { name: '전남(무안)', longitude: 126.463 },
   { name: '광주', longitude: 126.851 },
+  { name: '경북(안동)', longitude: 128.729 },
+  { name: '대구', longitude: 128.601 },
+  { name: '경남(창원)', longitude: 128.682 },
   { name: '부산', longitude: 129.075 },
   { name: '울산', longitude: 129.311 },
   { name: '제주', longitude: 126.531 },
-  { name: '강원(춘천)', longitude: 127.729 },
   { name: '해외·모름', longitude: 135.0 },
 ] as const
+
+/** 표준자오선(동경 135°) 대비 진태양시 보정값(분). 1° = 4분 */
+export function correctionMinutes(longitude: number): number {
+  return Math.round((longitude - 135) * 4)
+}
 
 // ── 요청 (PRD §10.2) ─────────────────────────────────────────
 
