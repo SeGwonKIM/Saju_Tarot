@@ -7,12 +7,15 @@ import logging
 import time
 import uuid
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from .calendar_service import CalendarError
 from .config import get_settings
 from .logging_setup import setup_logging
+from .routers import calendar as calendar_router
 
 settings = get_settings()          # ← 환경변수가 잘못되면 여기서 부팅 실패
 setup_logging()
@@ -67,7 +70,42 @@ async def trace_and_log(request: Request, call_next):
     return response
 
 
+def _error(status: int, code: str, message: str, field: str | None = None) -> JSONResponse:
+    """에러 응답을 한 형태로 통일한다 (PRD §10.6)."""
+    payload: dict[str, object] = {"code": code, "message": message}
+    if field:
+        payload["field"] = field
+    return JSONResponse(status_code=status, content={"error": payload})
+
+
+@app.exception_handler(CalendarError)
+async def calendar_error_handler(_: Request, exc: CalendarError) -> JSONResponse:
+    """형식은 맞지만 도메인상 불가능한 날짜 → 422 (PRD §10.6)."""
+    return _error(422, exc.code, exc.message, exc.field)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    """입력 형식 오류 → 400. FastAPI 기본값은 422지만 명세를 따른다."""
+    first = exc.errors()[0] if exc.errors() else {}
+    loc = [str(p) for p in first.get("loc", []) if p not in ("body", "path", "query")]
+    return _error(
+        400,
+        "INVALID_INPUT",
+        "입력값을 다시 확인해 주세요.",
+        loc[-1] if loc else None,
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_error_handler(_: Request, exc: HTTPException) -> JSONResponse:
+    return _error(exc.status_code, "HTTP_ERROR", str(exc.detail))
+
+
 @app.get("/api/v1/health")
 async def health() -> dict[str, str]:
     """콜드 스타트 예열용 (PRD §10.3, §13)."""
     return {"status": "ok", "env": settings.app_env}
+
+
+app.include_router(calendar_router.router, prefix="/api/v1")

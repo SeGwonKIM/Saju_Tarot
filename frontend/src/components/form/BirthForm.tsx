@@ -5,7 +5,7 @@
  * (PRD §5.3 상태 정의).
  * 프론트 검증은 편의일 뿐이고, 같은 규칙을 서버에서 다시 검증한다 (PRD §12.2).
  */
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import {
   BIRTH_PLACES,
   CALENDAR_TYPES,
@@ -18,14 +18,9 @@ import {
   type ReadingRequest,
   type Topic,
 } from '../../schemas/reading'
-import {
-  JIJI_HOURS,
-  YEARS,
-  daysInMonth,
-  formatDateKo,
-  leapMonthsOf,
-  mockConvert,
-} from '../../lib/calendar'
+import { JIJI_HOURS, YEARS, formatDateKo } from '../../lib/calendar'
+import { DateNotFound } from '../../api/calendar'
+import { useConvertedDate, useLunarYear } from '../../hooks/useCalendar'
 import { eulReul } from '../../lib/korean'
 import { Card, Checkbox, Chip, Field, Segmented, Select, TextInput } from '../ui'
 
@@ -56,9 +51,18 @@ export default function BirthForm({
   const [errors, setErrors] = useState<Errors>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
 
-  const maxDay = daysInMonth(calendarType, Number(year), Number(month))
-  const leapMonths = calendarType === 'lunar' ? leapMonthsOf(Number(year)) : []
-  const showLeap = leapMonths.includes(Number(month))
+  const isLunar = calendarType === 'lunar'
+
+  /** 음력 연도 정보 — 달마다 일수가 다르고 윤달이 있는 달도 해마다 다르다 (PRD §8.1) */
+  const lunarYear = useLunarYear(Number(year), isLunar)
+  const monthInfo = lunarYear.data?.months.find((m) => m.month === Number(month))
+
+  // 서버 정보가 오기 전/실패 시에는 29일로 잡는다. 30일로 잡으면 없는 날짜를 고를 수 있다
+  const maxDay = isLunar
+    ? (isLeapMonth ? monthInfo?.leap_days : monthInfo?.days) ?? 29
+    : new Date(Number(year), Number(month), 0).getDate()
+
+  const showLeap = isLunar && Boolean(monthInfo?.has_leap)
 
   const birthDate = `${year}-${String(month).padStart(2, '0')}-${String(
     Math.min(Number(day), maxDay),
@@ -67,10 +71,7 @@ export default function BirthForm({
   const birthTime = timeUnknown ? null : timeMode === 'jiji' ? jiji : `${hour.padStart(2, '0')}:${minute}`
 
   /** 토글해도 입력값을 버리지 않고 변환해 보여준다 (PRD §6.1 폼 UX 규칙) */
-  const converted = useMemo(
-    () => mockConvert(calendarType, birthDate, isLeapMonth),
-    [calendarType, birthDate, isLeapMonth],
-  )
+  const converted = useConvertedDate(calendarType, birthDate, showLeap && isLeapMonth)
 
   const missing: string[] = []
   if (!name.trim()) missing.push('이름')
@@ -198,12 +199,28 @@ export default function BirthForm({
               </Select>
             </div>
 
-            {/* 변환 결과를 보조 텍스트로 (PRD §6.1) */}
-            <p className="pt-1 text-xs text-ink-400 dark:text-ink-300">
-              {calendarType === 'solar'
-                ? `${formatDateKo(birthDate, 'solar')} · 음력 ${converted.lunar_date.slice(5).replace('-', '.')} 무렵`
-                : `음력 ${birthDate.slice(5).replace('-', '.')}${isLeapMonth ? ' 윤달' : ' 평달'} · 양력 ${converted.solar_date} 무렵`}
-              <span className="ml-1 opacity-70">(정확한 변환은 저장 시 계산됩니다)</span>
+            {/* 변환 결과를 보조 텍스트로 (PRD §6.1) — 이제 서버가 실제로 계산한 값이다 */}
+            <p
+              className="pt-1 text-xs text-ink-400 dark:text-ink-300"
+              aria-live="polite"
+            >
+              {converted.isPending && '변환 중…'}
+              {converted.isError &&
+                (converted.error instanceof DateNotFound
+                  ? converted.error.message
+                  : '변환 서버에 연결하지 못했습니다. 날짜는 그대로 제출할 수 있습니다.')}
+              {converted.data && (
+                <>
+                  {calendarType === 'solar'
+                    ? `${formatDateKo(birthDate, 'solar')} = 음력 ${converted.data.lunar_date}${
+                        converted.data.is_leap_month ? ' (윤달)' : ''
+                      }`
+                    : `음력 ${birthDate}${showLeap && isLeapMonth ? ' 윤달' : ''} = 양력 ${
+                        converted.data.solar_date
+                      }`}
+                  <span className="ml-1.5 opacity-70">· {converted.data.ganji}</span>
+                </>
+              )}
             </p>
 
             {/* 음력 + 그 해 그 달에 윤달이 있을 때만 (PRD §6.1 필드 5) */}
