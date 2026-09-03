@@ -46,6 +46,16 @@ cp .env.example frontend/.env          # VITE_ 로 시작하는 항목만 남긴
 - [ ] GitHub · Render · Cloudflare · Supabase · Anthropic **전 계정 2FA** 켜기
 - [ ] 복구 코드는 오프라인 보관
 
+## 내 상담 말투 학습 (PRD §11.5)
+
+문장 품질을 올리는 가장 큰 항목입니다. 규칙만으로는 모델이 일반론을 씁니다.
+
+1. `backend\data	one_samples.example.md` 를 같은 폴더에 `tone_samples.md` 로 복사
+2. 실제로 손님에게 보낸 문장을 **5건 이상** 채우기 (이름·생년월일·연락처는 지우고)
+3. 서버 재시작 — 자동 적용되고 리포트의 "문체 학습 전 초안" 표시가 사라집니다
+
+`tone_samples.md` 는 git 에 올라가지 않습니다. 개인정보로 보이는 문장은 로딩 시 걸러냅니다.
+
 ## 규칙
 
 1. **비밀값은 코드에 없다.** 환경변수만. `VITE_` 접두사가 붙은 값은 브라우저에 공개된다 — 비밀값 금지.

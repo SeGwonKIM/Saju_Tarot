@@ -23,6 +23,7 @@ from ..report_service import (
     build_facts,
 )
 from ..saju_service import ELEMENTS, MidnightRule, build_chart
+from ..tone_samples import is_active as tone_is_active
 from ..tarot_service import draw, new_seed
 
 router = APIRouter(prefix="/readings", tags=["readings"])
@@ -236,4 +237,5 @@ def create_reading(
         report_model=report.model if report else None,
         engine_version=chart.engine_version,
         tarot_seed=seed,
+        draft_before_tone_learning=not tone_is_active(),
     )

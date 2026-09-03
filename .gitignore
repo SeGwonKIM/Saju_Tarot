@@ -38,6 +38,10 @@ npm-debug.log*
 logs/
 tmp/
 
+# ── 상담 말투 샘플 (실제 상담 문장 — PRD §11.5) ────────
+backend/data/tone_samples.md
+!backend/data/tone_samples.example.md
+
 # ── 백업 (개인정보 포함 — 절대 커밋 금지, PRD §12.17) ─
 backups/
 *.dump

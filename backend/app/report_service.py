@@ -19,6 +19,8 @@ import logging
 from dataclasses import dataclass
 from typing import Protocol
 
+from . import tone_samples
+
 log = logging.getLogger("saju.report")
 
 # 주제별 사주:타로 판단 비중 (PRD §3.4)
@@ -145,11 +147,15 @@ def _user_prompt(facts: str, name: str, topics: list[str]) -> str:
         for t in topics
         if t in TOPIC_WEIGHTS
     )
+    # 내 말투 샘플이 5건 이상이면 few-shot 으로 넣는다 (PRD §11.5 · Q7)
+    tone = tone_samples.as_prompt_block(topics)
+    tone_section = f"\n{tone}\n" if tone else ""
+
     return f"""{facts}
 
 [주제별 판단 비중과 주의사항]
 {weights}
-
+{tone_section}
 <사용자데이터>
 이름: {name}
 상담주제: {", ".join(topics)}
