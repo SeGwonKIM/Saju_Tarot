@@ -48,51 +48,101 @@ NAME_MAP = {
 }
 
 
-def fetch_kasi_year(year: int, key: str) -> dict[str, datetime]:
-    """KASI 에서 그 해 24절기 시각을 가져온다."""
+def fetch_kasi_month(year: int, month: int, key: str) -> dict[str, tuple[datetime, bool]]:
+    """KASI 에서 그 달 절기를 가져온다.
+
+    ⚠️ `solMonth` 는 **필수 파라미터**다(공식 문서 확인). 연 단위로 한 번 부르면 안 되고
+       달마다 호출해야 한다.
+
+    ⚠️ 공식 문서의 출력 항목에는 시각(`kst`)이 없고 날짜(`locdate`)만 있다.
+       실제 응답에 kst 가 오는 경우가 있어 **있으면 쓰고 없으면 날짜만 비교**한다.
+       돌려주는 bool 이 '시각까지 있었는지' 여부다.
+    """
     params = urllib.parse.urlencode(
-        {"serviceKey": key, "solYear": year, "numOfRows": 30, "_type": "xml"},
+        {
+            "serviceKey": key,
+            "solYear": year,
+            "solMonth": f"{month:02d}",
+            "numOfRows": 10,
+            "pageNo": 1,
+        },
         safe="",
     )
     with urllib.request.urlopen(f"{KASI_URL}?{params}", timeout=20) as res:
         root = ElementTree.fromstring(res.read())
 
-    out: dict[str, datetime] = {}
+    code = root.findtext(".//resultCode")
+    if code not in (None, "00", "0"):
+        raise RuntimeError(f"KASI 오류 resultCode={code} {root.findtext('.//resultMsg')}")
+
+    out: dict[str, tuple[datetime, bool]] = {}
     for item in root.iter("item"):
         name = (item.findtext("dateName") or "").strip()
         ymd = (item.findtext("locdate") or "").strip()
-        hm = (item.findtext("kst") or "").strip()  # 예: "1727"
-        if not (name and ymd and len(hm) == 4):
+        if not (name and len(ymd) == 8):
             continue
-        out[name] = datetime(
-            int(ymd[:4]), int(ymd[4:6]), int(ymd[6:8]), int(hm[:2]), int(hm[2:])
+        hm = (item.findtext("kst") or "").strip()
+        has_time = len(hm) == 4 and hm.isdigit()
+        out[name] = (
+            datetime(
+                int(ymd[:4]), int(ymd[4:6]), int(ymd[6:8]),
+                int(hm[:2]) if has_time else 0,
+                int(hm[2:]) if has_time else 0,
+            ),
+            has_time,
         )
     return out
 
 
-def compare_year(year: int, key: str) -> list[dict[str, object]]:
+def fetch_kasi_year(year: int, key: str) -> dict[str, tuple[datetime, bool]]:
+    out: dict[str, tuple[datetime, bool]] = {}
+    for month in range(1, 13):
+        out.update(fetch_kasi_month(year, month, key))
+    return out
+
+
+def compare_year(year: int, key: str) -> tuple[list[dict[str, object]], int, int]:
+    """(불일치 목록, 대조 건수, 시각까지 비교한 건수)"""
     kasi = fetch_kasi_year(year, key)
     lib = solar_term_table(year)
     diffs: list[dict[str, object]] = []
+    compared = 0
+    with_time = 0
 
-    for ko_name, kasi_time in kasi.items():
+    for ko_name, (kasi_time, has_time) in kasi.items():
         hanja = NAME_MAP.get(ko_name)
-        if hanja is None or hanja not in lib:
+        if hanja is None:
+            continue  # 절기 외 항목(잡절 등)이 섞여 오면 건너뛴다
+        if hanja not in lib:
             diffs.append({"year": year, "term": ko_name, "issue": "라이브러리에 없는 절기"})
             continue
+
         lib_time = datetime.fromisoformat(lib[hanja])
-        delta_min = round((lib_time - kasi_time).total_seconds() / 60)
-        if delta_min != 0:
+        compared += 1
+
+        if has_time:
+            with_time += 1
+            delta_min = round((lib_time - kasi_time).total_seconds() / 60)
+            if delta_min != 0:
+                diffs.append(
+                    {
+                        "year": year, "term": ko_name,
+                        "kasi": kasi_time.isoformat(sep=" "),
+                        "library": lib_time.isoformat(sep=" "),
+                        "delta_minutes": delta_min,
+                    }
+                )
+        elif lib_time.date() != kasi_time.date():
+            # 시각이 없으면 날짜만 비교한다. 날짜가 다르면 그 날 출생자의 월주가 통째로 틀린다
             diffs.append(
                 {
-                    "year": year,
-                    "term": ko_name,
-                    "kasi": kasi_time.isoformat(sep=" "),
-                    "library": lib_time.isoformat(sep=" "),
-                    "delta_minutes": delta_min,
+                    "year": year, "term": ko_name,
+                    "kasi_date": kasi_time.date().isoformat(),
+                    "library_date": lib_time.date().isoformat(),
+                    "note": "KASI 응답에 시각이 없어 날짜만 비교",
                 }
             )
-    return diffs
+    return diffs, compared, with_time
 
 
 def main() -> int:
@@ -110,22 +160,31 @@ def main() -> int:
 
     all_diffs: list[dict[str, object]] = []
     checked = 0
-    for year in range(args.start, args.end + 1):
+    timed = 0
+    years = range(args.start, args.end + 1)
+    print(f"{len(years)}개 연도 × 12개월 = 요청 {len(years) * 12}건 (개발계정 한도 10,000건/일)")
+    print()
+
+    for year in years:
         try:
-            diffs = compare_year(year, key)
+            diffs, compared, with_time = compare_year(year, key)
         except Exception as e:  # 네트워크·응답 형식 문제는 그 해만 건너뛴다
-            print(f"  {year}: 조회 실패 ({type(e).__name__})")
+            print(f"  {year}: 조회 실패 ({type(e).__name__}: {e})")
             continue
-        checked += 24
+        checked += compared
+        timed += with_time
         all_diffs.extend(diffs)
         mark = "OK" if not diffs else f"차이 {len(diffs)}건"
-        print(f"  {year}: {mark}")
+        print(f"  {year}: 절기 {compared}개 대조 · {mark}")
 
     OUT_PATH.write_text(
         json.dumps(all_diffs, ensure_ascii=False, indent=1), encoding="utf-8"
     )
     print()
-    print(f"대조 {checked}건 · 불일치 {len(all_diffs)}건 → {OUT_PATH.name}")
+    print(f"대조 {checked}건 (시각까지 비교 {timed}건) · 불일치 {len(all_diffs)}건 → {OUT_PATH.name}")
+    if checked and timed == 0:
+        print("⚠️ KASI 응답에 시각(kst)이 없어 날짜만 대조했습니다.")
+        print("   절기 경계 당일 출생자의 연·월주 검증에는 시각이 필요합니다 — PRD §16.1 후속 과제.")
     return 0 if not all_diffs else 1
 
 
