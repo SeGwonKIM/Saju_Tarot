@@ -59,4 +59,17 @@ cp .env.example frontend/.env          # VITE_ 로 시작하는 항목만 남긴
 - [x] 1단계 — 스캐폴드 + `/health` 연결 확인
 - [x] 2단계 — 목업 데이터로 입력 폼·리포트 화면 완성
 - [x] 3단계 — 음↔양 변환 API (`POST /calendar/convert`, `GET /calendar/lunar-year/{year}`)
-- [ ] 4단계 — 만세력 엔진 + 골든 테스트 100건
+- [x] 4단계 — 만세력 엔진 (한국 시간대 보정 + `lunar-python` 연결 + 불변식 테스트)
+- [ ] 4b단계 — KASI 절기 전수 대조 (서비스 키 필요, 아래 참고)
+- [ ] 5단계 — `POST /readings` 계산 결과 연결
+
+## KASI 절기 대조 (4b단계)
+
+라이브러리 절기 시각이 한국천문연구원 발표값과 분 단위로 맞는지 전 연도에 걸쳐 확인합니다.
+공공데이터포털(data.go.kr)에서 '24절기 정보' 서비스 키를 받은 뒤:
+
+```bash
+cd backend && $env:KASI_SERVICE_KEY="발급받은키"; ./.venv/Scripts/python.exe tools/verify_solar_terms.py --from 1950 --to 2050
+```
+
+불일치 목록이 `tools/solar_term_diff.json` 에 저장됩니다.

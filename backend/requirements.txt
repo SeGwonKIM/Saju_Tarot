@@ -8,6 +8,10 @@ python-dotenv==1.0.1
 # 만세력 — 음↔양 변환 (PRD §8.1). 없는 윤달에도 True를 반환하므로 왕복 검증 필수
 korean-lunar-calendar==0.3.1
 
+# 만세력 — 절기·60갑자·지장간·대운 (PRD §8.2). 절기는 베이징 기준이므로
+# app/korea_time.py 의 보정 레이어를 반드시 거쳐서 넣어야 한다
+lunar-python==1.4.8
+
 # 개발·테스트
 pytest==8.3.4
 httpx==0.28.1
