@@ -1,12 +1,99 @@
 @import "tailwindcss";
 
+/* ── 디자인 토큰 ─────────────────────────────────────────────
+   사주·타로라는 주제에 맞춰 '밤하늘과 금박' 두 축으로 잡았다.
+   라이트는 한지 느낌의 아이보리, 다크는 남색 밤하늘.
+   색만으로 정보를 전달하지 않는다 (PRD §13 접근성).
+─────────────────────────────────────────────────────────── */
+@theme {
+  --color-ink-950: #0a0e1c;
+  --color-ink-900: #101632;
+  --color-ink-800: #1a2145;
+  --color-ink-700: #262f5c;
+  --color-ink-600: #3a4478;
+  --color-ink-400: #7b83ad;
+  --color-ink-300: #a8aecb;
+
+  --color-paper-50: #fdfbf6;
+  --color-paper-100: #f7f2e8;
+  --color-paper-200: #ece4d5;
+  --color-paper-300: #d9cdb6;
+
+  --color-gold-600: #a8842c;
+  --color-gold-500: #c9a227;
+  --color-gold-400: #dfbb56;
+  --color-gold-300: #ecd591;
+
+  --color-plum-500: #6d4a7a;
+  --color-plum-400: #8c63a0;
+
+  --font-display: "Gowun Batang", "Nanum Myeongjo", "Batang", serif;
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+}
+
 :root {
   color-scheme: light dark;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
-  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "Malgun Gothic", sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  background: var(--color-paper-50);
+  color: var(--color-ink-900);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: var(--color-ink-950);
+    color: var(--color-paper-100);
+  }
+}
+
+/* 밤하늘 — 아주 옅은 별빛. 장식이므로 대비에 영향을 주지 않는 세기로만 */
+.starfield {
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(236, 213, 145, 0.55) 50%, transparent 51%),
+    radial-gradient(1px 1px at 78% 12%, rgba(236, 213, 145, 0.4) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 34% 62%, rgba(236, 213, 145, 0.35) 50%, transparent 51%),
+    radial-gradient(1px 1px at 62% 78%, rgba(236, 213, 145, 0.45) 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 54%, rgba(236, 213, 145, 0.3) 50%, transparent 51%),
+    radial-gradient(1px 1px at 22% 88%, rgba(236, 213, 145, 0.3) 50%, transparent 51%);
+}
+
+/* 포커스 링 — 키보드 탐색이 항상 보이게 (PRD §13) */
+:where(button, a, input, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-gold-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
 }
