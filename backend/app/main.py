@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .calendar_service import CalendarError
 from .config import get_settings
-from .logging_setup import setup_logging
+from .logging_setup import mask_path, setup_logging
 from . import rate_limit
 from .routers import calendar as calendar_router
 from .routers import readings as readings_router
@@ -44,6 +44,44 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+
+# 화면이 쓰는 외부 출처 — 폰트(구글·jsdelivr) 외에는 막는다
+CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
+    "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",      # 다른 사이트가 우리를 iframe 으로 감싸지 못하게
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+])
+
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+    "Content-Security-Policy": CSP,
+    # 터널·프록시가 HTTPS 를 씌우므로 브라우저에 HTTPS 고정을 지시한다
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    # 공유 링크가 검색엔진에 올라가면 안 된다 (PRD §12.14)
+    "X-Robots-Tag": "noindex, nofollow",
+}
+
+
+@app.middleware("http")
+async def security_headers(request: Request, call_next):
+    """PRD §12.4. 요구사항으로 적어두고 구현이 빠져 있었다 — 점검에서 발견."""
+    response = await call_next(request)
+    for name, value in SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    # 서버 종류를 알리지 않는다 — 알려진 취약점 탐색의 출발점이 된다
+    response.headers["Server"] = "saju"
+    return response
 
 
 @app.middleware("http")
@@ -80,7 +118,7 @@ async def trace_and_log(request: Request, call_next):
     log.info(
         "%s %s %s %.1fms trace_id=%s",
         request.method,
-        request.url.path,
+        mask_path(request.url.path),
         response.status_code,
         elapsed_ms,
         trace_id,

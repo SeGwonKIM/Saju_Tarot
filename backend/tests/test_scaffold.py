@@ -78,3 +78,19 @@ def test_openapi_is_closed_in_production():
     )
     assert a.openapi_url is None
     assert a.docs_url is None
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [
+        ("/api/v1/share/AbCdEfGhIjKlMnOpQrSt", "/api/v1/share/***"),
+        ("/api/v1/readings/r-16ec6a2d39a17816", "/api/v1/readings/***"),
+        ("/api/v1/health", "/api/v1/health"),
+        ("/cards/the-star.jpg", "/cards/the-star.jpg"),
+    ],
+)
+def test_path_secrets_are_masked_in_logs(path, expected):
+    """공유 토큰과 리포트 id 는 그 자체가 접근 권한이다 — 로그에 남으면 안 된다."""
+    from app.logging_setup import mask_path
+
+    assert mask_path(path) == expected

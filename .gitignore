@@ -42,6 +42,7 @@ tmp/
 backend/data/readings.db
 backend/data/readings.db-*
 backend/data/field_key.txt
+backend/data/admin_token.txt
 
 # ── 상담 말투 샘플 (실제 상담 문장 — PRD §11.5) ────────
 backend/data/tone_samples.md

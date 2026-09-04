@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     # 문장 생성 공급자 — 지금은 OpenAI 키로 진행한다 (PRD §4.7)
     openai_api_key: str = ""
     report_model: str = "gpt-5.5"
+    # 상담자 전용 창구 보호 (PRD §12.3). 없으면 첫 실행에 파일로 만든다
+    admin_token: str = ""
     supabase_url: str = ""
     supabase_service_role_key: str = ""
     field_encryption_key: str = ""

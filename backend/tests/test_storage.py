@@ -155,9 +155,31 @@ def test_expiry_follows_retention_setting(store):
 # ── 목록 (PRD §12.14 마스킹) ──────────────────────────────────
 
 
+def _admin_headers() -> dict[str, str]:
+    from app.admin_auth import admin_token
+
+    return {"X-Admin-Token": admin_token()}
+
+
+def test_list_requires_admin_token():
+    """이 창구가 열려 있으면 누구나 모든 리포트 id 를 받아 전체를 볼 수 있다.
+
+    점검에서 실제로 뚫려 있었다 — 토큰 없이 200 이 나왔고, 받은 id 로
+    생년월일시까지 조회됐다.
+    """
+    client.post("/api/v1/readings", json=BODY)
+    assert client.get("/api/v1/readings-list").status_code == 404
+    assert (
+        client.get("/api/v1/readings-list", headers={"X-Admin-Token": "wrong-token-value"}).status_code
+        == 404
+    )
+    assert client.get("/api/v1/readings-list", headers=_admin_headers()).status_code == 200
+
+
 def test_list_masks_names():
     client.post("/api/v1/readings", json=BODY)
-    items = client.get("/api/v1/readings-list").json()
+    r = client.get("/api/v1/readings-list", headers=_admin_headers())
+    items = r.json()
     assert items
     assert items[0]["masked_name"] == "홍*동"
-    assert "홍길동" not in client.get("/api/v1/readings-list").text
+    assert "홍길동" not in r.text

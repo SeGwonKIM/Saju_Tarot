@@ -36,7 +36,23 @@ _PATTERNS = [
 ]
 
 
+# 주소에 담긴 비밀 — 공유 토큰과 리포트 id 는 그 자체가 접근 권한이다.
+# 로그(터미널 캡처 포함)에 남으면 남의 리포트에 그대로 들어갈 수 있다.
+_PATH_SECRETS = [
+    re.compile(r"(/share/)[A-Za-z0-9_-]{8,}"),
+    re.compile(r"(/readings/)r-[0-9a-f]{8,}"),
+]
+
+
+def mask_path(path: str) -> str:
+    for p in _PATH_SECRETS:
+        path = p.sub(r"\1***", path)
+    return path
+
+
 def mask(text: str) -> str:
+    # 경로에 담긴 비밀은 uvicorn 접근 로그에도 찍힌다 — 모든 로거에 적용해야 한다
+    text = mask_path(text)
     for p in _PATTERNS:
         if p.groups >= 3:
             text = p.sub(r"\1***\3", text)

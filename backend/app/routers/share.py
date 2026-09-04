@@ -5,6 +5,8 @@
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Path
+
+from ..admin_auth import require_admin
 from pydantic import BaseModel
 
 from ..storage import Storage, get_storage, redact_for_share
@@ -40,9 +42,17 @@ def read_shared(
     return SharedReading(id=stored.id, payload=redact_for_share(stored.payload))
 
 
-@router.get("/readings-list", response_model=list[ListItem])
+@router.get(
+    "/readings-list",
+    response_model=list[ListItem],
+    dependencies=[Depends(require_admin)],
+)
 def list_recent(storage: Storage = Depends(get_storage)) -> list[ListItem]:
-    """상담자용 최근 목록. 이름은 마스킹해서 보낸다 (PRD §12.14)."""
+    """상담자용 최근 목록 — **X-Admin-Token 헤더 필요**.
+
+    이 창구가 열려 있으면 누구나 모든 리포트 id 를 받아 전체 내용을 볼 수 있다
+    (점검에서 실제로 뚫려 있었다). 이름은 마스킹해서 보낸다 (PRD §12.14).
+    """
     return [
         ListItem(
             id=r.id,
