@@ -41,9 +41,9 @@ const TRIGRAMS: [boolean, boolean, boolean][] = [
 
 /** 타로 3장 — 달(무의식) · 운명의 수레바퀴(순환) · 별(희망) */
 const CARDS = [
-  { file: 'the-moon', rotate: -15, x: -70, y: 74, z: 1 },
-  { file: 'wheel-of-fortune', rotate: 0, x: 0, y: 64, z: 3 },
-  { file: 'the-star', rotate: 15, x: 70, y: 74, z: 1 },
+  { file: 'the-moon', rotate: -15, x: -72, y: 108, z: 1 },
+  { file: 'wheel-of-fortune', rotate: 0, x: 0, y: 98, z: 3 },
+  { file: 'the-star', rotate: 15, x: 72, y: 108, z: 1 },
 ]
 
 const GOLD = 'rgb(223 187 86)'
@@ -181,8 +181,10 @@ export default function MysticVisual() {
           })}
         </g>
 
-        {/* ── 중심 · 태극 ────────────────────────────────── */}
-        <g transform="translate(0 -6)">
+        {/* ── 태극 ───────────────────────────────────────────
+            카드 위쪽에 온전히 드러나게 올린다. 조금만 더 올리면 오행 고리(r=96)에
+            닿으므로 살짝 줄여 간격을 둔다. */}
+        <g transform="translate(0 -26) scale(0.9)">
           <circle r="40" fill="rgb(10 14 28)" fillOpacity="0.75" />
           <circle r="40" fill="none" stroke={GOLD} strokeOpacity="0.7" strokeWidth="1.5" />
           {/* 음(어두움) 바탕에 양(밝음) 반쪽 */}
