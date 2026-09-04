@@ -20,6 +20,7 @@ from .logging_setup import setup_logging
 from . import rate_limit
 from .routers import calendar as calendar_router
 from .routers import readings as readings_router
+from .routers import share as share_router
 
 settings = get_settings()          # ← 환경변수가 잘못되면 여기서 부팅 실패
 setup_logging()
@@ -128,6 +129,23 @@ async def health() -> dict[str, str]:
 
 app.include_router(calendar_router.router, prefix="/api/v1")
 app.include_router(readings_router.router, prefix="/api/v1")
+app.include_router(share_router.router, prefix="/api/v1")
+
+
+@app.on_event("startup")
+def purge_expired_on_start() -> None:
+    """보관 기간이 지난 리포트를 정리한다 (PRD §12.9).
+
+    내 PC 서버는 매일 도는 크론이 없으므로 켤 때마다 한 번 훑는다.
+    """
+    from .storage import get_storage
+
+    try:
+        removed = get_storage().purge_expired()
+        if removed:
+            log.info("기간 만료 리포트 %d건 정리", removed)
+    except Exception as e:  # noqa: BLE001 — 정리 실패가 기동을 막으면 안 된다
+        log.warning("만료 정리 실패: %s", type(e).__name__)
 
 
 # ── 화면 서빙 (PRD §14.6 단일 오리진) ────────────────────────

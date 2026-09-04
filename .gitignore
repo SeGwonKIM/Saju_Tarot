@@ -38,6 +38,11 @@ npm-debug.log*
 logs/
 tmp/
 
+# ── 저장 데이터 (개인정보 — PRD §12.14) ────────────────
+backend/data/readings.db
+backend/data/readings.db-*
+backend/data/field_key.txt
+
 # ── 상담 말투 샘플 (실제 상담 문장 — PRD §11.5) ────────
 backend/data/tone_samples.md
 !backend/data/tone_samples.example.md

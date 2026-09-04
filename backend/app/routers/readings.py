@@ -10,13 +10,14 @@
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Path as PathParam
 from pydantic import BaseModel, Field, field_validator
 
 from ..calendar_service import CalendarError, lunar_to_solar
 from ..config import get_settings
 from ..korea_time import correct
 from ..reading_service import interpret
+from ..storage import Storage, get_storage
 from ..report_service import (
     NullReportGenerator,
     OpenAIReportGenerator,
@@ -203,10 +204,25 @@ def _to_solar(body: ReadingRequest) -> date:
         raise CalendarError("INVALID_SOLAR_DATE", "없는 날짜입니다.") from e
 
 
+class ShareOut(BaseModel):
+    token: str
+    url: str
+    expires_at: str | None
+
+
+class ListItem(BaseModel):
+    id: str
+    masked_name: str
+    gender: str
+    created_at: str
+    expires_at: str
+
+
 @router.post("", response_model=ReadingResponse, status_code=201)
 def create_reading(
     body: ReadingRequest,
     generator: ReportGenerator = Depends(get_generator),
+    storage: Storage = Depends(get_storage),
 ) -> ReadingResponse:
     solar = _to_solar(body)
 
@@ -263,7 +279,7 @@ def create_reading(
     )
     report = generator.generate(facts, body.name, list(body.topics))
 
-    return ReadingResponse(
+    response = ReadingResponse(
         id=f"r-{seed:016x}",
         input_echo=InputEcho(
             solar_datetime=corrected.clock.isoformat(timespec="minutes"),
@@ -308,4 +324,56 @@ def create_reading(
         engine_version=chart.engine_version,
         tarot_seed=seed,
         draft_before_tone_learning=not tone_is_active(),
+    )
+
+    # 저장 (PRD §9). 이름·생년월일은 암호화되고, 보관 기간이 지나면 지워진다
+    settings = get_settings()
+    payload = response.model_dump()
+    payload.pop("id", None)
+    storage.save(
+        response.id,
+        name=body.name,
+        gender=body.gender,
+        birth=f"{body.calendar_type} {body.birth_date} {body.birth_time or '시간미상'}",
+        payload=payload,
+        retention_days=settings.data_retention_days,
+    )
+    return response
+
+
+@router.get("/{reading_id}", response_model=ReadingResponse)
+def get_reading(
+    reading_id: str = PathParam(min_length=3, max_length=64),
+    storage: Storage = Depends(get_storage),
+) -> ReadingResponse:
+    """링크를 다시 열거나 새로고침할 때. 없거나 기간이 지났으면 404."""
+    stored = storage.get(reading_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="리포트를 찾을 수 없습니다.")
+    return ReadingResponse(id=stored.id, **stored.payload)
+
+
+@router.delete("/{reading_id}", status_code=204)
+def delete_reading(
+    reading_id: str = PathParam(min_length=3, max_length=64),
+    storage: Storage = Depends(get_storage),
+) -> None:
+    """손님이 원하면 즉시 지운다 (PRD §12.9)."""
+    if not storage.delete(reading_id):
+        raise HTTPException(status_code=404, detail="리포트를 찾을 수 없습니다.")
+
+
+@router.post("/{reading_id}/share", response_model=ShareOut, status_code=201)
+def create_share(
+    reading_id: str = PathParam(min_length=3, max_length=64),
+    storage: Storage = Depends(get_storage),
+) -> ShareOut:
+    """읽기 전용 공유 링크. 토큰은 32자 난수라 추측할 수 없다 (PRD §12.3)."""
+    token = storage.create_share(reading_id)
+    if token is None:
+        raise HTTPException(status_code=404, detail="리포트를 찾을 수 없습니다.")
+    return ShareOut(
+        token=token,
+        url=f"/share/{token}",
+        expires_at=None,
     )

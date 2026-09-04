@@ -74,6 +74,36 @@ export async function createReading(input: ReadingRequest): Promise<Reading> {
   return readingSchema.parse(data)
 }
 
+/** 저장된 리포트를 id 로 다시 불러온다 — 새로고침·링크 재방문 */
+export async function fetchReading(id: string): Promise<Reading> {
+  const data = await request<unknown>(`/readings/${encodeURIComponent(id)}`)
+  return readingSchema.parse(data)
+}
+
+/** 읽기 전용 공유 링크를 만든다 (PRD §12.3) */
+export async function createShareLink(id: string): Promise<string> {
+  const data = await request<{ token: string }>(
+    `/readings/${encodeURIComponent(id)}/share`,
+    { method: 'POST' },
+  )
+  return `${location.origin}/share/${data.token}`
+}
+
+/** 공유 링크로 열람 — 생년월일시는 빠진 형태로 온다 */
+export async function fetchShared(token: string): Promise<Reading> {
+  const data = await request<{ id: string; payload: unknown }>(
+    `/share/${encodeURIComponent(token)}`,
+  )
+  return readingSchema.parse({
+    ...(data.payload as object),
+    id: data.id,
+    input_echo: {
+      solar_datetime: '',
+      ...((data.payload as { input_echo?: object }).input_echo ?? {}),
+    },
+  })
+}
+
 export async function getHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/health`)

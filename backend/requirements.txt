@@ -14,6 +14,9 @@ korean-lunar-calendar==0.3.1
 # app/korea_time.py 의 보정 레이어를 반드시 거쳐서 넣어야 한다
 lunar-python==1.4.8
 
+# 개인정보 필드 암호화 — 이름·생년월일 (PRD §12.14)
+cryptography==50.0.1
+
 # 리포트 문장 생성 (PRD §11)
 anthropic==1.3.0
 

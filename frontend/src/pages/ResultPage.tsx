@@ -2,16 +2,59 @@
  * 리포트 화면 (PRD §6.3 — 9블록 구성).
  * LLM 해석이 없어도(report === null) 계산 결과는 보여준다 — 부분 성공 (PRD §11.3).
  */
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { createShareLink, fetchReading, fetchShared } from '../api/readings'
+import type { Reading } from '../schemas/reading'
 import ElementBar from '../components/report/ElementBar'
 import PillarGrid from '../components/report/PillarGrid'
 import TarotCard from '../components/report/TarotCard'
 import { Card } from '../components/ui'
 import { getReading } from '../lib/store'
 
-export default function ResultPage() {
-  const { id = '' } = useParams()
-  const reading = getReading(id)
+export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }) {
+  const { id = '', token = '' } = useParams()
+  // 세션에 남아 있으면 그걸 쓰고, 없으면 서버에서 불러온다(새로고침·링크 재방문)
+  const [reading, setReading] = useState<Reading | null>(
+    mode === 'own' ? getReading(id) : null,
+  )
+  const [loading, setLoading] = useState(reading === null)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (reading) return
+    const load = mode === 'shared' ? fetchShared(token) : fetchReading(id)
+    load
+      .then(setReading)
+      .catch(() => setReading(null))
+      .finally(() => setLoading(false))
+  }, [id, token, mode, reading])
+
+  async function handleShare() {
+    setSharing(true)
+    try {
+      const url = await createShareLink(reading!.id)
+      setShareUrl(url)
+      await navigator.clipboard?.writeText(url).then(
+        () => setCopied(true),
+        () => setCopied(false),
+      )
+    } catch {
+      setShareUrl(null)
+    } finally {
+      setSharing(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center text-sm text-ink-400">
+        리포트를 불러오는 중…
+      </main>
+    )
+  }
 
   if (!reading) {
     return (
@@ -20,9 +63,9 @@ export default function ResultPage() {
           리포트를 찾을 수 없습니다
         </p>
         <p className="text-sm leading-relaxed text-ink-500 dark:text-ink-300">
-          아직 저장 기능이 붙기 전이라, 탭을 닫으면 리포트가 남지 않습니다.
+          링크가 만료되었거나 없는 리포트입니다.
           <br />
-          다시 입력해 주세요.
+          보관 기간(90일)이 지나면 자동으로 삭제됩니다.
         </p>
         <Link
           to="/"
@@ -48,10 +91,15 @@ export default function ResultPage() {
             이번 달 흐름 리포트
           </h1>
           <p className="mt-2 text-sm font-medium text-gold-300">{period.label}</p>
-          <p className="mt-1 text-sm text-ink-300">
-            {echo.solar_datetime.slice(0, 10)}
-            {pillars.hour ? ` ${echo.solar_datetime.slice(11, 16)}` : ' (시간 미상)'} 기준
-          </p>
+          {/* 공유 링크에는 생년월일시가 오지 않는다 (PRD §12.14) */}
+          {echo.solar_datetime ? (
+            <p className="mt-1 text-sm text-ink-300">
+              {echo.solar_datetime.slice(0, 10)}
+              {pillars.hour ? ` ${echo.solar_datetime.slice(11, 16)}` : ' (시간 미상)'} 기준
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-ink-400">청단사주타로</p>
+          )}
         </div>
       </header>
 
@@ -268,6 +316,37 @@ export default function ResultPage() {
             )}
           </dl>
         </details>
+
+        {/* 공유 — 본인 리포트에서만 (PRD §12.3) */}
+        {mode === 'own' && (
+          <Card className="p-6 sm:p-7">
+            <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
+              손님에게 보내기
+            </h2>
+            <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-300">
+              읽기 전용 링크입니다. 생년월일·시간은 링크에 담기지 않습니다.
+            </p>
+            {shareUrl ? (
+              <div className="mt-4 space-y-2">
+                <code className="block break-all rounded-lg bg-paper-100 px-3 py-2 text-xs text-ink-700 dark:bg-ink-900 dark:text-paper-200">
+                  {shareUrl}
+                </code>
+                <p className="text-xs text-ink-400 dark:text-ink-300">
+                  {copied ? '복사했습니다. 그대로 붙여넣으시면 됩니다.' : '위 주소를 복사해 보내세요.'}
+                </p>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleShare}
+                disabled={sharing}
+                className="mt-4 rounded-xl bg-ink-900 px-5 py-3 text-sm font-semibold text-paper-50 disabled:opacity-60 dark:bg-gold-500 dark:text-ink-950"
+              >
+                {sharing ? '만드는 중…' : '공유 링크 만들기'}
+              </button>
+            )}
+          </Card>
+        )}
 
         {/* ⑧ 면책 */}
         <p className="px-1 text-xs leading-relaxed text-ink-400 dark:text-ink-400">
