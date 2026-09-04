@@ -65,6 +65,12 @@ def test_name_masking(name, masked):
     assert mask_name(name) == masked
 
 
+def _admin_headers() -> dict[str, str]:
+    from app.admin_auth import admin_token
+
+    return {"X-Admin-Token": admin_token()}
+
+
 # ── 저장·조회 ─────────────────────────────────────────────────
 
 
@@ -81,9 +87,19 @@ def test_missing_reading_is_404():
     assert client.get("/api/v1/readings/r-없는것").status_code == 404
 
 
-def test_delete_removes_it():
+def test_delete_requires_admin_token():
+    """링크를 받은 사람이 상담자의 기록을 지울 수 있으면 안 된다.
+
+    점검에서 토큰 없이 204 가 나왔다 — 실제로 지워졌다.
+    """
     rid = client.post("/api/v1/readings", json=BODY).json()["id"]
-    assert client.delete(f"/api/v1/readings/{rid}").status_code == 204
+    assert client.delete(f"/api/v1/readings/{rid}").status_code == 404
+    assert client.get(f"/api/v1/readings/{rid}").status_code == 200  # 살아 있다
+
+
+def test_delete_works_with_admin_token():
+    rid = client.post("/api/v1/readings", json=BODY).json()["id"]
+    assert client.delete(f"/api/v1/readings/{rid}", headers=_admin_headers()).status_code == 204
     assert client.get(f"/api/v1/readings/{rid}").status_code == 404
 
 
@@ -153,12 +169,6 @@ def test_expiry_follows_retention_setting(store):
 
 
 # ── 목록 (PRD §12.14 마스킹) ──────────────────────────────────
-
-
-def _admin_headers() -> dict[str, str]:
-    from app.admin_auth import admin_token
-
-    return {"X-Admin-Token": admin_token()}
 
 
 def test_list_requires_admin_token():

@@ -83,3 +83,18 @@ def test_forwarded_header_is_used():
         client = None
 
     assert rate_limit.client_ip(Req()) == "203.0.113.7"  # type: ignore[arg-type]
+
+
+def test_oversized_body_is_rejected():
+    """큰 본문 하나로 집 PC 메모리를 고갈시키지 못하게 한다 (PRD §12.5).
+
+    uvicorn 에는 기본 상한이 없어서 공개 서버에서는 DoS 통로가 된다.
+    """
+    huge = {**BODY, "name": "가" * 200_000}
+    r = client.post("/api/v1/readings", json=huge)
+    assert r.status_code == 413
+    assert r.json()["error"]["code"] == "PAYLOAD_TOO_LARGE"
+
+
+def test_normal_body_passes():
+    assert client.post("/api/v1/readings", json=BODY).status_code == 201

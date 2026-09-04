@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, field_validator
 from ..calendar_service import CalendarError, lunar_to_solar
 from ..config import get_settings
 from ..korea_time import correct
+from ..admin_auth import require_admin
 from ..reading_service import interpret
 from ..storage import Storage, get_storage
 from ..report_service import (
@@ -353,12 +354,19 @@ def get_reading(
     return ReadingResponse(id=stored.id, **stored.payload)
 
 
-@router.delete("/{reading_id}", status_code=204)
+@router.delete(
+    "/{reading_id}", status_code=204, dependencies=[Depends(require_admin)]
+)
 def delete_reading(
     reading_id: str = PathParam(min_length=3, max_length=64),
     storage: Storage = Depends(get_storage),
 ) -> None:
-    """손님이 원하면 즉시 지운다 (PRD §12.9)."""
+    """삭제 — **X-Admin-Token 필요** (PRD §12.9).
+
+    점검에서 토큰 없이 남의 리포트를 지울 수 있었다. 링크를 받은 사람이
+    상담자의 기록을 없앨 수 있으면 안 된다. 손님의 삭제 요청은 상담자를
+    거치도록 한다.
+    """
     if not storage.delete(reading_id):
         raise HTTPException(status_code=404, detail="리포트를 찾을 수 없습니다.")
 

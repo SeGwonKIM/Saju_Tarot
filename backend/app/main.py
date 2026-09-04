@@ -73,6 +73,30 @@ SECURITY_HEADERS = {
 }
 
 
+def _error(status: int, code: str, message: str, field: str | None = None) -> JSONResponse:
+    """에러 응답을 한 형태로 통일한다 (PRD §10.6)."""
+    payload: dict[str, object] = {"code": code, "message": message}
+    if field:
+        payload["field"] = field
+    return JSONResponse(status_code=status, content={"error": payload})
+
+
+# 우리가 받는 가장 큰 요청도 1KB 를 넘지 않는다. 넉넉히 잡아도 이 정도면 충분하다.
+MAX_BODY_BYTES = 64 * 1024
+
+
+@app.middleware("http")
+async def limit_body_size(request: Request, call_next):
+    """큰 본문 하나로 집 PC 메모리를 고갈시키지 못하게 한다.
+
+    uvicorn 에는 기본 상한이 없다. 공개 서버에서는 이게 곧 DoS 통로가 된다.
+    """
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_BODY_BYTES:
+        return _error(413, "PAYLOAD_TOO_LARGE", "요청이 너무 큽니다.")
+    return await call_next(request)
+
+
 @app.middleware("http")
 async def security_headers(request: Request, call_next):
     """PRD §12.4. 요구사항으로 적어두고 구현이 빠져 있었다 — 점검에서 발견."""
@@ -125,14 +149,6 @@ async def trace_and_log(request: Request, call_next):
     )
     response.headers["X-Trace-Id"] = trace_id
     return response
-
-
-def _error(status: int, code: str, message: str, field: str | None = None) -> JSONResponse:
-    """에러 응답을 한 형태로 통일한다 (PRD §10.6)."""
-    payload: dict[str, object] = {"code": code, "message": message}
-    if field:
-        payload["field"] = field
-    return JSONResponse(status_code=status, content={"error": payload})
 
 
 @app.exception_handler(CalendarError)

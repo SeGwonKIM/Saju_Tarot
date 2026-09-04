@@ -38,11 +38,21 @@ npm-debug.log*
 logs/
 tmp/
 
-# ── 저장 데이터 (개인정보 — PRD §12.14) ────────────────
-backend/data/readings.db
-backend/data/readings.db-*
-backend/data/field_key.txt
-backend/data/admin_token.txt
+# ── 저장 데이터·비밀 (개인정보 — PRD §12.14) ───────────
+#  파일 이름이 바뀌어도 새지 않도록 **패턴으로** 막는다.
+#  이름을 하나하나 적으면 새 파일이 생길 때마다 구멍이 난다.
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+todo.db
+*key*.txt
+*token*.txt
+*secret*
+*credential*
+backend/data/
 
 # ── 상담 말투 샘플 (실제 상담 문장 — PRD §11.5) ────────
 backend/data/tone_samples.md
