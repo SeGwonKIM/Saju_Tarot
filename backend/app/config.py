@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     field_encryption_key: str = ""
     database_url: str = ""
 
+    # SQLite 파일 위치. 비우면 backend/data/readings.db (내 PC 서버).
+    # 클라우드에서는 컨테이너가 재시작하면 파일이 사라지므로,
+    # 영구 디스크 경로를 넣어야 한다 — 예: /var/data/readings.db (PRD §14.6)
+    db_path: str = ""
+
     @property
     def origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",") if o.strip()]

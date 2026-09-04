@@ -236,5 +236,9 @@ def get_storage() -> Storage:
     if _storage is None:
         from .config import get_settings
 
-        _storage = Storage(env_key=get_settings().field_encryption_key)
+        settings = get_settings()
+        _storage = Storage(
+            db_path=Path(settings.db_path) if settings.db_path else None,
+            env_key=settings.field_encryption_key,
+        )
     return _storage

@@ -46,6 +46,48 @@ cd C:\AI-Agent\saju_tarot
 - PC 를 끄거나 인터넷이 끊기면 서비스도 멈춥니다. 절전 모드도 해제해 두세요
 - 무료 터널 주소는 **껐다 켜면 바뀝니다.** 고정 주소가 필요하면 Cloudflare 계정 + 도메인이 필요합니다
 
+## 고정 주소로 배포 (Render)
+
+내 PC 를 끄면 서비스가 멈추는 게 싫다면 클라우드에 올린다. 주소가 고정되고,
+`main` 에 push 하면 자동으로 다시 배포된다.
+
+`Dockerfile` 이 화면과 API 를 **한 이미지**로 묶는다 — 로컬의 `서버_실행.ps1`
+과 같은 단일 오리진 구조다.
+
+```bash
+docker build -t saju-tarot .          # 로컬에서 먼저 확인하고 싶을 때
+```
+
+### 배포 절차
+
+1. Render 대시보드 → **New → Blueprint** → 이 저장소 선택 (`render.yaml` 을 읽는다)
+2. 아래 세 값을 Render 화면에서 직접 넣는다 — 저장소에는 남지 않는다
+
+| 환경변수 | 없으면 |
+|---|---|
+| `OPENAI_API_KEY` | 서버는 뜨지만 문장 생성이 안 된다 (계산 결과만) |
+| `FIELD_ENCRYPTION_KEY` | **재시작할 때마다 키가 새로 생겨 먼저 저장한 리포트를 못 읽는다** |
+| `ADMIN_TOKEN` | 재시작할 때마다 상담자 토큰이 바뀐다 |
+
+```bash
+# FIELD_ENCRYPTION_KEY
+python -c "import os,base64;print(base64.b64encode(os.urandom(32)).decode())"
+# ADMIN_TOKEN
+python -c "import secrets;print(secrets.token_urlsafe(24))"
+```
+
+3. 배포 후 주소가 정해지면 `render.yaml` 의 `ALLOWED_ORIGINS` 를 그 주소로 바꾼다
+
+### 알아둘 것
+
+- **free 플랜에는 영구 디스크가 없다.** 재배포·재시작하면 SQLite 파일이 사라진다.
+  리포트를 보관하려면 유료 플랜으로 올리고 `render.yaml` 의 `disk` 블록과
+  `DB_PATH=/var/data/readings.db` 주석을 푼다
+- free 플랜은 15분간 요청이 없으면 잠들고, 다음 접속이 느리다
+- 말투 샘플(`backend/data/tone_samples.md`)은 실제 상담 문장이라 저장소에 없다.
+  배포본은 few-shot 없이 일반 문체로 나간다 — 넣으려면 Render 의 Secret File 로 올린다
+- 운영 모드라 `/docs` 와 `/openapi.json` 은 닫힌다
+
 ## 개발 환경 실행
 
 ```bash

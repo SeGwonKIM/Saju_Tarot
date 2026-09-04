@@ -1,0 +1,58 @@
+# 청단사주타로 — Render 배포 설정 (Blueprint)
+#
+# 쓰는 법: Render 대시보드 → New → Blueprint → 이 저장소 선택.
+#          sync: false 로 표시된 값은 Render 화면에서 직접 넣는다(저장소에 안 남는다).
+
+services:
+  - type: web
+    name: saju-tarot
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: singapore          # 한국에서 가장 가까운 지역
+    plan: free                 # 디스크가 필요하면 starter 이상으로 올린다 (아래 disk 주석 참고)
+    healthCheckPath: /api/v1/health
+    autoDeploy: true           # main 에 push 하면 자동 재배포
+
+    envVars:
+      - key: APP_ENV
+        value: production      # /docs 와 /openapi.json 을 닫는다
+
+      # 같은 서버가 화면까지 내보내므로 CORS 는 사실상 쓰이지 않는다.
+      # 그래도 와일드카드 금지 규칙(PRD §12.4)을 지켜 실제 주소를 적어 둔다.
+      # 배포 후 실제 도메인이 정해지면 이 값을 그것으로 바꾼다.
+      - key: ALLOWED_ORIGINS
+        value: https://saju-tarot.onrender.com
+
+      # ── 아래 셋은 Render 화면에서 직접 넣는다 ──────────────
+      # 문장 생성용 키. 없으면 서버는 뜨지만 계산 결과만 나온다.
+      - key: OPENAI_API_KEY
+        sync: false
+
+      # ★ 반드시 넣는다. 없으면 컨테이너가 재시작할 때마다 새 키가 생겨서
+      #   먼저 저장된 리포트를 영영 못 읽는다.
+      #   생성: python -c "import os,base64;print(base64.b64encode(os.urandom(32)).decode())"
+      - key: FIELD_ENCRYPTION_KEY
+        sync: false
+
+      # ★ 반드시 넣는다. 없으면 재시작마다 상담자 토큰이 바뀐다.
+      #   생성: python -c "import secrets;print(secrets.token_urlsafe(24))"
+      - key: ADMIN_TOKEN
+        sync: false
+
+      - key: DATA_RETENTION_DAYS
+        value: "90"
+      - key: ANON_RETENTION_DAYS
+        value: "7"
+
+      # 영구 디스크를 붙였을 때만 켠다. free 플랜에서는 넣지 말 것
+      # (디스크가 없는데 이 경로를 가리키면 부팅 후 저장에서 실패한다).
+      # - key: DB_PATH
+      #   value: /var/data/readings.db
+
+    # ── 리포트를 영구 보관하려면 (유료 플랜) ────────────────
+    # free 플랜에는 디스크가 없다. 재배포·재시작하면 SQLite 파일이 사라진다.
+    # 유료로 올린 뒤 아래 두 블록의 주석을 풀면 데이터가 남는다.
+    # disk:
+    #   name: saju-data
+    #   mountPath: /var/data
+    #   sizeGB: 1

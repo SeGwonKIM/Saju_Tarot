@@ -19,6 +19,9 @@ cryptography==50.0.1
 
 # 리포트 문장 생성 (PRD §11)
 anthropic==1.3.0
+# report_service.py 가 실제로 쓰는 것은 이쪽이다 (PRD §4.7 어댑터).
+# 빠져 있어서 로컬에서만 돌아갔다 — 배포하면 ImportError 로 리포트가 실패한다.
+openai==3.7.0
 
 # 개발·테스트
 pytest==9.1.1             # 8.3.4 취약점 (PYSEC-2026-1845)
