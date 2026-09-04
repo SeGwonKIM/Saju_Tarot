@@ -1,18 +1,26 @@
-# 사주·타로 상담 리포트
+# 청단사주타로
 
 이름·생년월일·출생시각·양력/음력을 입력하면 사주팔자와 타로를 결합해
-**"이번 달 흐름 세 줄 + 연애·직업·재물 조언 한 줄씩"** 리포트를 만들어 주는 웹서비스.
+**사주 풀이 · 이번 달 흐름 세 줄 · 주제별 조언**을 한 장으로 만들어 주는 웹서비스.
 
-- 설계 문서: [PRD](../제출자료/도매인역량/PRD_saju_tarot.md) v2.11
-- 도메인 분석: [domain_breakdown](../제출자료/도매인역량/domain_breakdown.md) v2.11
+주제는 **재회운 · 상대방속마음 · 연애 · 재물 · 대인관계** 다섯 가지입니다.
+
+- 만세력 기준 계산 — 절기·진태양시·역사적 표준시까지 보정
+- 타로 3장 고정 스프레드 — 같은 사람·같은 달이면 항상 같은 카드
+- 문장 생성은 LLM, **계산은 절대 LLM 에 맡기지 않습니다**
+- 이름·생년월일은 암호화 저장, 90일 후 자동 삭제
+
+- 설계 문서: [PRD](docs/PRD.md) — 화면·API·보안·검증까지
+- 도메인 분석: [도메인분석](docs/도메인분석.md) — 왜 이렇게 만들었는지
 
 ## 구성
 
-| 위치 | 스택 | 배포 예정지 |
-|---|---|---|
-| `frontend/` | React 19 + Vite + TypeScript + Tailwind 4 | Cloudflare Pages |
-| `backend/` | Python + FastAPI | Render |
-| (예정) | Supabase Postgres + Auth (RLS) | Supabase |
+| 위치 | 스택 |
+|---|---|
+| `frontend/` | React 19 + Vite + TypeScript + Tailwind 4 |
+| `backend/` | Python + FastAPI + SQLite |
+| 만세력 | `lunar-python` + 한국 시간대 보정 레이어 (직접 구현) |
+| 문장 생성 | OpenAI (공급자는 어댑터로 분리) |
 
 ## 내 PC 를 서버로 (PRD §14.6)
 
