@@ -34,12 +34,27 @@ _global: deque[float] = deque()
 def client_ip(request: Request) -> str:
     """터널·프록시 뒤에서는 실제 주소가 헤더로 온다.
 
-    ⚠️ 헤더는 위조할 수 있다. 우리 앞단(Cloudflare Tunnel 등)이 덧붙인 값만
-    믿을 수 있으므로, 신뢰할 프록시가 없는 구성이라면 소켓 주소를 쓴다.
+    ⚠️ 헤더는 위조할 수 있다. **요청자가 넣은 값과 우리 앞단이 넣은 값을
+    구분해야** 한다. 예전에는 X-Forwarded-For 의 맨 앞을 썼는데, 그 자리는
+    요청자가 직접 채울 수 있다. 헤더만 바꿔가며 보내면 IP당 제한이 통째로
+    무력화된다(점검에서 실제로 뚫렸다 — 11번째에 막혀야 할 요청이 통과했다).
+
+    믿는 순서
+      1) CF-Connecting-IP — Cloudflare 가 **덮어쓴다**. 요청자가 넣어도 지워진다
+      2) X-Forwarded-For 의 **맨 뒤** — 바로 앞 프록시가 덧붙인 값이다.
+         요청자가 앞쪽에 뭘 채워 넣든 마지막 자리는 우리 앞단이 쓴다
+      3) 소켓 주소 — 프록시가 없는 구성(내 PC 직접 접속·같은 와이파이)
     """
+    cf = request.headers.get("cf-connecting-ip")
+    if cf:
+        return cf.strip()
+
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
-        return forwarded.split(",")[0].strip()
+        hops = [h.strip() for h in forwarded.split(",") if h.strip()]
+        if hops:
+            return hops[-1]
+
     return request.client.host if request.client else "unknown"
 
 

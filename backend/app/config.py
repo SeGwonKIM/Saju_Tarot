@@ -5,6 +5,7 @@
 """
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, field_validator
@@ -12,8 +13,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    # backend/.env 를 **절대경로로** 가리킨다.
+    # 상대경로면 서버를 어디서 띄웠느냐에 따라 파일을 못 찾고,
+    # 키가 조용히 비어서 문장 생성이 통째로 빠진다(NullReportGenerator).
+    # 실제로 서버_실행.ps1 도 루트에서 돌아 이 문제를 겪었다.
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=Path(__file__).resolve().parents[1] / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )

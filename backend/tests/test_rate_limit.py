@@ -75,14 +75,44 @@ def test_reads_are_not_limited():
         assert r.status_code == 200
 
 
-def test_forwarded_header_is_used():
-    """터널 뒤에서는 실제 주소가 헤더로 온다."""
-
+def _req(headers: dict[str, str], peer: str | None = None):
     class Req:
-        headers = {"x-forwarded-for": "203.0.113.7, 10.0.0.1"}
-        client = None
+        pass
 
-    assert rate_limit.client_ip(Req()) == "203.0.113.7"  # type: ignore[arg-type]
+    r = Req()
+    r.headers = {k.lower(): v for k, v in headers.items()}
+    r.client = type("C", (), {"host": peer})() if peer else None
+    return r
+
+
+def test_forwarded_header_is_used():
+    """터널 뒤에서는 실제 주소가 헤더로 온다 — **맨 뒤** 값이다.
+
+    맨 앞자리는 요청자가 직접 채울 수 있다. 앞단 프록시는 자기가 받은 주소를
+    뒤에 덧붙이므로, 믿을 수 있는 건 마지막 항목이다.
+    """
+    ip = rate_limit.client_ip(_req({"x-forwarded-for": "203.0.113.7, 10.0.0.1"}))
+    assert ip == "10.0.0.1"
+
+
+def test_forwarded_header_cannot_be_spoofed():
+    """헤더를 바꿔가며 IP당 제한을 우회하지 못해야 한다.
+
+    Cloudflare 는 CF-Connecting-IP 를 **덮어쓴다**. 요청자가 무엇을 넣든
+    실제 주소로 집계되어 같은 바구니에 들어간다.
+    """
+    real = "1.2.3.4"
+    attempts = [
+        {"cf-connecting-ip": real, "x-forwarded-for": "9.9.9.9, " + real},
+        {"cf-connecting-ip": real, "x-forwarded-for": "8.8.8.8, " + real},
+        {"cf-connecting-ip": real},
+    ]
+    assert {rate_limit.client_ip(_req(h)) for h in attempts} == {real}
+
+
+def test_direct_connection_uses_socket():
+    """프록시가 없는 구성(내 PC·같은 와이파이)은 소켓 주소를 쓴다."""
+    assert rate_limit.client_ip(_req({}, peer="192.168.0.9")) == "192.168.0.9"
 
 
 def test_oversized_body_is_rejected():
