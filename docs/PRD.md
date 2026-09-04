@@ -2,9 +2,9 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | **v2.23** (2차 점검 — 무인증 삭제·요청 크기 차단, .gitignore 패턴화) |
+| 문서 버전 | **v2.25** (백업 구현 — SQLite 백업 API · 무결성 검사 · AES-256-GCM) |
 | 최초 작성 | 2026-09-03 |
-| 최종 갱신 | 2026-09-03 |
+| 최종 갱신 | 2026-09-04 |
 | 작성자 | 김세권 (SeGwonKIM) |
 | 근거 문서 | [domain_breakdown.md](도메인분석.md) v2.11 · 블로그 [프레임워크·PRD·API](https://segwonkim.github.io/blog_ksk/학습노트/2026/09/02/framework-prd-api.html) · [백엔드·네트워크·보안·배포](https://segwonkim.github.io/blog_ksk/학습노트/2026/09/03/backend-glossary-network-security-deploy.html) |
 | 상태 | §18 빈칸을 채워가며 계속 갱신 |
