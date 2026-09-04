@@ -50,7 +50,7 @@ export default function HomePage() {
           <div className="flex items-center gap-2.5">
             <span aria-hidden="true" className="text-lg">☾</span>
             <span className="font-display font-bold tracking-tight text-ink-900 dark:text-paper-100">
-              <span className="text-gold-600 dark:text-gold-400">청단사주타로에서</span>{' '}
+              <span className="text-lg text-gold-600 sm:text-xl dark:text-gold-400">청단사주타로에서</span>{' '}
               <span className="text-sm font-semibold sm:text-base">
                 당신의 운세, 사주와 타로로 정확하게 집어드립니다
               </span>
@@ -79,8 +79,8 @@ export default function HomePage() {
             사주팔자 · 타로 · 오행을 한 번에
           </p>
           <h1 className="rise font-display font-bold tracking-tight">
-            <span className="block text-xl text-gold-400 sm:text-2xl">청단사주타로에서</span>
-            <span className="mt-1.5 block text-3xl leading-[1.3] sm:text-[2.75rem] sm:leading-[1.25]">
+            <span className="block text-2xl text-gold-400 sm:text-4xl">청단사주타로에서</span>
+            <span className="mt-2 block text-3xl leading-[1.3] sm:text-[2.75rem] sm:leading-[1.25]">
               당신의 운세,
               <br />
               사주와 타로로
