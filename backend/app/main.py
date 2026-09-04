@@ -6,15 +6,18 @@ PRD §10 의 계약을 따른다. 지금은 /health 만 열려 있다.
 import logging
 import time
 import uuid
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from .calendar_service import CalendarError
 from .config import get_settings
 from .logging_setup import setup_logging
+from . import rate_limit
 from .routers import calendar as calendar_router
 from .routers import readings as readings_router
 
@@ -25,7 +28,10 @@ log = logging.getLogger("saju")
 app = FastAPI(
     title="사주·타로 상담 리포트 API",
     version="0.1.0",
-    docs_url="/docs" if settings.app_env == "local" else None,   # 운영에선 문서 비공개
+    # 운영에서는 API 문서와 명세를 모두 닫는다.
+    # docs_url 만 닫으면 /openapi.json 으로 엔드포인트·스키마가 그대로 새어 나간다.
+    docs_url="/docs" if settings.app_env == "local" else None,
+    openapi_url="/openapi.json" if settings.app_env == "local" else None,
     redoc_url=None,
 )
 
@@ -37,6 +43,17 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Authorization", "Content-Type"],
 )
+
+
+@app.middleware("http")
+async def limit_costly_requests(request: Request, call_next):
+    """비용이 드는 요청만 죈다 (PRD §12.5). 공개 서버에서는 필수다."""
+    if rate_limit.is_costly(request):
+        allowed, retry_after = rate_limit.check(request)
+        if not allowed:
+            log.warning("레이트리밋 차단 %s", request.url.path)
+            return rate_limit.too_many(retry_after)
+    return await call_next(request)
 
 
 @app.middleware("http")
@@ -111,3 +128,22 @@ async def health() -> dict[str, str]:
 
 app.include_router(calendar_router.router, prefix="/api/v1")
 app.include_router(readings_router.router, prefix="/api/v1")
+
+
+# ── 화면 서빙 (PRD §14.6 단일 오리진) ────────────────────────
+#  프론트 빌드 결과를 같은 서버가 내보낸다. 주소가 하나가 되어
+#  터널링이 단순해지고 CORS 문제가 사라진다.
+DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+if DIST.is_dir():
+    app.mount("/assets", StaticFiles(directory=DIST / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str) -> FileResponse:
+        """API 가 아닌 주소는 전부 화면으로 — 새로고침해도 라우팅이 살아 있게."""
+        candidate = (DIST / full_path).resolve()
+        if full_path and candidate.is_file() and DIST.resolve() in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(DIST / "index.html")
+else:
+    log.warning("frontend/dist 가 없습니다. `npm run build` 후 다시 켜면 화면이 함께 서빙됩니다.")

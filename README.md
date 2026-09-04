@@ -14,6 +14,30 @@
 | `backend/` | Python + FastAPI | Render |
 | (예정) | Supabase Postgres + Auth (RLS) | Supabase |
 
+## 내 PC 를 서버로 (PRD §14.6)
+
+화면과 API 를 **한 서버가 함께** 내보냅니다. 주소가 하나라 CORS 문제가 없고 터널링이 단순합니다.
+
+```powershell
+cd C:\AI-Agent\saju_tarot
+.\서버_실행.ps1              # 내 PC + 같은 와이파이 안에서 접속
+.\서버_실행.ps1 -공개         # 인터넷에 공개 (Cloudflare 터널)
+```
+
+| 어디서 | 주소 |
+|---|---|
+| 내 PC | `http://localhost:8000` |
+| 같은 와이파이 (휴대폰 등) | `http://<내 PC IP>:8000` — 실행하면 화면에 표시됩니다 |
+| 인터넷 | `-공개` 옵션 실행 시 뜨는 `https://….trycloudflare.com` |
+
+인터넷 공개에는 cloudflared 가 필요합니다: `winget install --id Cloudflare.cloudflared`
+
+**공개 전 알아두실 것**
+- 요청은 **IP당 시간당 10건, 전체 100건**으로 제한됩니다 (LLM 요금 보호)
+- 운영 모드에서는 API 문서와 명세(`/openapi.json`)가 닫힙니다
+- PC 를 끄거나 인터넷이 끊기면 서비스도 멈춥니다. 절전 모드도 해제해 두세요
+- 무료 터널 주소는 **껐다 켜면 바뀝니다.** 고정 주소가 필요하면 Cloudflare 계정 + 도메인이 필요합니다
+
 ## 개발 환경 실행
 
 ```bash

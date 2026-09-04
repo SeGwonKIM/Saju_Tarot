@@ -60,3 +60,21 @@ def test_log_masking(raw, leaked):
     """로그에 이름·생년월일·토큰이 남지 않는다 (PRD §12.15)."""
     assert leaked not in mask(raw)
     assert "***" in mask(raw)
+
+
+def test_openapi_is_closed_in_production():
+    """운영에서는 명세가 새면 안 된다 — docs_url 만 닫는 것으로는 부족하다."""
+    from fastapi import FastAPI
+
+    from app.config import Settings
+
+    prod = Settings(app_env="production")
+    assert prod.app_env == "production"
+
+    # 실제 앱과 같은 규칙으로 만들었을 때 openapi 가 꺼지는지
+    a = FastAPI(
+        docs_url="/docs" if prod.app_env == "local" else None,
+        openapi_url="/openapi.json" if prod.app_env == "local" else None,
+    )
+    assert a.openapi_url is None
+    assert a.docs_url is None

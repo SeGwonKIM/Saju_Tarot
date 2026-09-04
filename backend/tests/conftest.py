@@ -9,6 +9,7 @@
 
 import pytest
 
+from app import rate_limit
 from app.main import app
 from app.report_service import Report
 from app.routers.readings import get_generator
@@ -49,3 +50,15 @@ def no_network_generator(request):
     app.dependency_overrides[get_generator] = lambda: fake
     yield fake
     app.dependency_overrides.pop(get_generator, None)
+
+
+@pytest.fixture(autouse=True)
+def fresh_rate_limit():
+    """테스트끼리 한도를 물려주지 않는다.
+
+    이 장치가 없으면 11번째 테스트부터 429 로 무더기 실패한다
+    (레이트리밋이 실제로 동작한다는 증거이기도 하다).
+    """
+    rate_limit.reset()
+    yield
+    rate_limit.reset()
