@@ -65,3 +65,6 @@ backups/
 
 # TypeScript 증분 빌드 캐시
 *.tsbuildinfo
+
+# 실행 중에만 존재하는 현재 터널 주소
+현재주소.txt
