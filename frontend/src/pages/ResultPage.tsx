@@ -34,7 +34,7 @@ export default function ResultPage() {
     )
   }
 
-  const { input_echo: echo, pillars, elements, tarot, report, period } = reading
+  const { input_echo: echo, pillars, elements, tarot, report, period, interpretation } = reading
 
   return (
     <div className="min-h-screen bg-paper-50 pb-20 dark:bg-ink-950">
@@ -65,6 +65,69 @@ export default function ResultPage() {
             문장 생성은 다음 단계에서 붙습니다.
           </div>
         )}
+
+        {/* 사주 풀이 — 평생 값이라 이번 달 흐름보다 앞에 둔다 (PRD §8.7) */}
+        <Card className="p-6 sm:p-7">
+          <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
+            사주 풀이
+          </h2>
+          <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-300">
+            타고난 결 — 달마다 바뀌지 않습니다
+          </p>
+
+          <div className="mt-4 rounded-xl bg-paper-100/70 px-4 py-3 dark:bg-ink-900/60">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="text-xs text-ink-400 dark:text-ink-300">일간(나)</span>
+              <span className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
+                {interpretation.day_master_ko} ({interpretation.day_master_gan})
+              </span>
+              <span className="text-xs text-ink-500 dark:text-ink-300">
+                {interpretation.yin_yang}의 {interpretation.element} · {interpretation.day_master_image}
+              </span>
+            </div>
+            {interpretation.dominant.length > 0 && (
+              <p className="mt-2 text-xs text-ink-500 dark:text-ink-300">
+                가장 두드러진 십성:{' '}
+                <strong className="font-semibold text-ink-800 dark:text-paper-200">
+                  {interpretation.dominant.join(' · ')}
+                </strong>
+              </p>
+            )}
+          </div>
+
+          {report ? (
+            <ol className="mt-4 space-y-3">
+              {report.saju_reading.map((line, i) => (
+                <li key={i} className="flex gap-3 text-[15px] leading-relaxed">
+                  <span className="font-display font-bold text-gold-600 dark:text-gold-400">
+                    {i + 1}
+                  </span>
+                  <span className="text-ink-700 dark:text-paper-200">{line}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="mt-4 text-sm text-ink-400 dark:text-ink-300">
+              풀이 문장은 아직 없습니다. 위 계산 값은 실제 값입니다.
+            </p>
+          )}
+
+          {/* 십성 분포 */}
+          {Object.keys(interpretation.shishen).length > 0 && (
+            <div className="mt-5 flex flex-wrap gap-1.5">
+              {Object.entries(interpretation.shishen)
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, count]) => (
+                  <span
+                    key={name}
+                    className="rounded-md bg-paper-200/70 px-2 py-1 text-xs text-ink-600 dark:bg-ink-800 dark:text-ink-300"
+                  >
+                    {name} {count}
+                  </span>
+                ))}
+            </div>
+          )}
+        </Card>
 
         {/* ⑤ 이번 달 흐름 — 핵심 산출물이므로 위로 올린다 */}
         {report && (

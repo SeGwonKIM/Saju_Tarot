@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, field_validator
 from ..calendar_service import CalendarError, lunar_to_solar
 from ..config import get_settings
 from ..korea_time import correct
+from ..reading_service import interpret
 from ..report_service import (
     NullReportGenerator,
     OpenAIReportGenerator,
@@ -153,7 +154,18 @@ class PillarsOut(BaseModel):
     hour: PillarOut | None
 
 
+class InterpretationOut(BaseModel):
+    day_master_ko: str
+    day_master_gan: str
+    day_master_image: str
+    element: str
+    yin_yang: str
+    shishen: dict[str, int]
+    dominant: list[str]
+
+
 class ReportOut(BaseModel):
+    saju_reading: list[str]
     monthly_flow: list[str]
     advice: dict[str, str]
     keywords: list[str]
@@ -166,6 +178,8 @@ class ReadingResponse(BaseModel):
     pillars: PillarsOut
     elements: ElementsOut
     tarot: list[TarotOut]
+    interpretation: InterpretationOut
+    """사주 풀이 재료 — 일간·십성 (PRD §8.7)"""
     period: PeriodOut
     """이번 달 기운 — 세운·월운. 원국과 달리 달마다 바뀐다 (PRD §8.5)"""
     report: ReportOut | None = None
@@ -211,6 +225,12 @@ def create_reading(
         midnight_rule=rule,
     )
 
+    reading = interpret(
+        corrected.jieqi_reference,
+        corrected.true_solar if known_time else None,
+        midnight_rule=rule,
+    )
+
     # 이번 달 기운 — 절기 기준으로 바뀐다 (PRD §8.5)
     now = datetime.now(KST).replace(tzinfo=None)
     now_corrected = correct(now, longitude)
@@ -234,6 +254,7 @@ def create_reading(
         verdict=chart.elements.verdict,
         tarot=[c.model_dump() for c in tarot_out],
         period=period.label,
+        interpretation=reading.summary_facts,
         basis=(
             f"{corrected.clock.isoformat(timespec='minutes')} "
             f"(진태양시 {corrected.true_solar_correction_min}분 보정, "
@@ -262,10 +283,20 @@ def create_reading(
             verdict=chart.elements.verdict,
         ),
         tarot=tarot_out,
+        interpretation=InterpretationOut(
+            day_master_ko=reading.day_master.ko,
+            day_master_gan=reading.day_master.gan,
+            day_master_image=reading.day_master.image,
+            element=reading.day_master.element,
+            yin_yang=reading.day_master.yin_yang,
+            shishen=reading.shishen,
+            dominant=reading.dominant,
+        ),
         period=PeriodOut(
             year_ko=period.year.ko, month_ko=period.month.ko, label=period.label
         ),
         report=ReportOut(
+            saju_reading=report.saju_reading,
             monthly_flow=report.monthly_flow,
             advice=report.advice,
             keywords=report.keywords,

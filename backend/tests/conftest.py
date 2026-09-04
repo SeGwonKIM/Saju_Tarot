@@ -26,6 +26,7 @@ class FakeReportGenerator:
         if self.fail:
             return None
         return Report(
+            saju_reading=["타고난 결 첫 줄.", "둘째 줄.", "셋째 줄."],
             monthly_flow=["첫째 줄입니다.", "둘째 줄입니다.", "셋째 줄입니다."],
             advice={t: f"{t} 조언입니다." for t in topics},
             keywords=["정리", "기다림"],

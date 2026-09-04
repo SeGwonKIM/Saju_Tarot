@@ -122,12 +122,18 @@ def test_every_topic_has_weight_and_rule():
 
 @pytest.mark.parametrize("word", ["암", "완치", "수익 보장", "사망"])
 def test_banned_word_detected(word):
-    r = Report(monthly_flow=[f"이번 달은 {word} 관련 흐름입니다."], advice={}, keywords=[])
+    r = Report(
+        saju_reading=["첫 줄.", "둘째 줄.", "셋째 줄."],
+        monthly_flow=[f"이번 달은 {word} 관련 흐름입니다."],
+        advice={},
+        keywords=[],
+    )
     assert has_banned_word(r) == word
 
 
 def test_clean_report_passes():
     r = Report(
+        saju_reading=["부드럽게 뻗는 결입니다.", "성실이 강점입니다.", "속도는 느린 편입니다."],
         monthly_flow=["차분히 흐름을 살피기 좋은 달입니다."],
         advice={"연애": "상대의 속도를 확인해 보시면 좋습니다."},
         keywords=["정리"],
@@ -201,3 +207,30 @@ def test_live_generation_produces_korean_sentences():
     assert set(report.advice) == {"재회운", "연애"}      # enum 이 주제를 고정했는지
     assert has_banned_word(report) is None
     assert all(len(s) <= 120 for s in report.monthly_flow)
+
+
+def test_banned_word_detected_in_saju_reading():
+    """사주 풀이도 금지어 검사를 받는다 — 성격 얘기라고 예외가 아니다."""
+    r = Report(
+        saju_reading=["암을 조심해야 하는 사주입니다.", "둘째.", "셋째."],
+        monthly_flow=["평범한 문장입니다."],
+        advice={},
+        keywords=[],
+    )
+    assert has_banned_word(r) == "암"
+
+
+def test_schema_requires_saju_reading():
+    s = _schema(["연애"])["schema"]
+    assert "saju_reading" in s["required"]
+    flow = s["properties"]["saju_reading"]
+    assert flow["minItems"] == flow["maxItems"] == 3
+
+
+def test_facts_include_interpretation():
+    facts = build_facts(
+        PILLARS, {"목": 1}, ["균형"], TAROT, "기준",
+        interpretation=["일간은 을목(乙) — 음의 목.", "십성 중 정재가 가장 많다."],
+    )
+    assert "풀이 재료" in facts
+    assert "을목" in facts and "정재" in facts

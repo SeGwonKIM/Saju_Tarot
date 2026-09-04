@@ -100,10 +100,24 @@ export function mockReading(input: ReadingRequest): Reading {
       day: pillar(seed + 5, seed + 7),
       hour: hourKnown ? pillar(seed + 8, Number(input.birth_time!.slice(0, 2)) / 2) : null,
     },
+    interpretation: {
+      day_master_ko: '을목',
+      day_master_gan: '乙',
+      day_master_image: '휘어지며 뻗는 풀과 덩굴',
+      element: '목',
+      yin_yang: '음',
+      shishen: { 정재: 5, 상관: 3, 비견: 2, 편인: 2 },
+      dominant: ['정재'],
+    },
     period: { year_ko: '병오', month_ko: '병신', label: '2026년 9월 · 병오년 병신월' },
     elements: { ...counts, verdict },
     tarot,
     report: {
+      saju_reading: [
+        '휘어지되 꺾이지 않는 결을 타고나셨습니다.',
+        '성실하게 쌓아 올리는 힘이 강한 편입니다.',
+        '속도를 내기보다 오래 가는 쪽이 맞습니다.',
+      ],
       monthly_flow: [
         '큰 결정을 서두르기보다 흐름을 살피기 좋은 달입니다.',
         '중순 무렵 미뤄둔 일에서 진척이 생기는 흐름입니다.',

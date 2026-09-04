@@ -174,6 +174,16 @@ export const readingSchema = z.object({
     수: z.number(),
     verdict: z.array(z.string()),
   }),
+  /** 사주 풀이 재료 — 일간·십성 (PRD §8.7) */
+  interpretation: z.object({
+    day_master_ko: z.string(),
+    day_master_gan: z.string(),
+    day_master_image: z.string(),
+    element: z.string(),
+    yin_yang: z.string(),
+    shishen: z.record(z.string(), z.number()),
+    dominant: z.array(z.string()),
+  }),
   /** 이번 달 기운 — 세운·월운. 원국과 달리 달마다 바뀐다 (PRD §8.5) */
   period: z.object({
     year_ko: z.string(),
@@ -196,6 +206,7 @@ export const readingSchema = z.object({
   /** LLM 실패 시 null — 계산 결과만 보여준다 (부분 성공, PRD §11.3) */
   report: z
     .object({
+      saju_reading: z.array(z.string()),
       monthly_flow: z.array(z.string()),
       advice: z.record(z.string(), z.string()),
       keywords: z.array(z.string()),
