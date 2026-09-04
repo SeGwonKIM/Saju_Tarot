@@ -49,8 +49,8 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-3.5">
           <div className="flex items-center gap-2.5">
             <span aria-hidden="true" className="text-lg">☾</span>
-            <span className="font-display text-lg font-bold tracking-tight text-ink-900 dark:text-paper-100">
-              사주한장
+            <span className="font-display text-base font-bold tracking-tight text-ink-900 sm:text-lg dark:text-paper-100">
+              당신의 운세, 사주와 타로로 정확하게 집어드립니다
             </span>
           </div>
           <a
