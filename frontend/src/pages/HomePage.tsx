@@ -78,12 +78,15 @@ export default function HomePage() {
             <span aria-hidden="true">✦</span>
             사주팔자 · 타로 · 오행을 한 번에
           </p>
-          <h1 className="rise font-display text-3xl leading-[1.3] font-bold tracking-tight sm:text-[2.75rem] sm:leading-[1.25]">
-            당신의 운세,
-            <br />
-            사주와 타로로
-            <br />
-            정확하게 집어드립니다
+          <h1 className="rise font-display font-bold tracking-tight">
+            <span className="block text-xl text-gold-400 sm:text-2xl">청단사주타로에서</span>
+            <span className="mt-1.5 block text-3xl leading-[1.3] sm:text-[2.75rem] sm:leading-[1.25]">
+              당신의 운세,
+              <br />
+              사주와 타로로
+              <br />
+              정확하게 집어드립니다
+            </span>
           </h1>
           <p className="rise mt-6 max-w-xl text-base leading-relaxed text-ink-300 sm:text-lg">
             이름과 태어난 장소, 시간만 알려주시면 사주팔자와 타로를 함께 읽어
