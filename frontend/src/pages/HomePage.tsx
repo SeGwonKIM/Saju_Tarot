@@ -28,7 +28,9 @@ export default function HomePage() {
   async function handleSubmit(input: ReadingRequest) {
     setSubmitting(true)
     setError(null)
-    const slowTimer = setTimeout(() => setSlow(true), 10_000)
+    // 계산만 하는 호출이라 0.3초면 끝난다(v3.0). 이보다 오래 걸리는 이유는
+    // 서버가 자고 있었던 것뿐이라, 그때만 안내를 띄운다.
+    const slowTimer = setTimeout(() => setSlow(true), 6_000)
     try {
       const reading = await createReading(input)
       saveReading(reading)
@@ -100,7 +102,7 @@ export default function HomePage() {
               href="#form"
               className="rounded-xl bg-gold-500 px-7 py-3.5 font-semibold text-ink-950 shadow-lg shadow-gold-500/20 transition-transform hover:-translate-y-0.5 hover:bg-gold-400"
             >
-              무료로 받아보기
+              시작하기
             </a>
             <span className="text-sm text-ink-400">3분 · 회원가입 없이</span>
           </div>
@@ -188,8 +190,8 @@ export default function HomePage() {
         )}
         {slow && submitting && (
           <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-            서버가 깨어나는 중입니다. 무료 서버는 쉬고 있다가 깨어나는 데 1분쯤 걸립니다 — 고장이
-            아닙니다.
+            서버가 깨어나는 중입니다. 쉬고 있던 서버는 깨어나는 데 1분쯤 걸립니다 — 고장이
+            아닙니다. 사주 계산 자체는 1초도 걸리지 않습니다.
           </div>
         )}
 

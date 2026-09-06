@@ -213,6 +213,8 @@ export const readingSchema = z.object({
       disclaimer: z.string(),
     })
     .nullable(),
+  /** 상담 주제 — 풀이를 나중에 만들 때 서버가 쓴다 (v3.0) */
+  topics: z.array(z.string()).optional(),
   /** 어떤 모델이 문장을 썼는지 — 리포트에 표기한다 (PRD §6.3 ⑦) */
   report_model: z.string().nullable().optional(),
   engine_version: z.string(),

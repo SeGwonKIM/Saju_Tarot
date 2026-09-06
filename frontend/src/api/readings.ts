@@ -74,6 +74,27 @@ export async function createReading(input: ReadingRequest): Promise<Reading> {
   return readingSchema.parse(data)
 }
 
+/**
+ * 풀이 문장을 채운다 (v3.0).
+ *
+ * 계산(`createReading`)은 즉시 끝나고 이 호출만 10초 넘게 걸린다.
+ * 그래서 화면을 먼저 띄운 뒤 이걸 부른다.
+ *
+ * 서버는 이미 만들어 둔 풀이가 있으면 다시 만들지 않으므로,
+ * 손님이 새로고침해도 요금이 두 번 나가지 않는다.
+ */
+export async function generateReport(id: string): Promise<Reading> {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 1200))
+    throw new ApiFailure(501, '목업에서는 풀이를 만들지 않습니다.')
+  }
+  const data = await request<unknown>(
+    `/readings/${encodeURIComponent(id)}/report`,
+    { method: 'POST' },
+  )
+  return readingSchema.parse(data)
+}
+
 /** 저장된 리포트를 id 로 다시 불러온다 — 새로고침·링크 재방문 */
 export async function fetchReading(id: string): Promise<Reading> {
   const data = await request<unknown>(`/readings/${encodeURIComponent(id)}`)
