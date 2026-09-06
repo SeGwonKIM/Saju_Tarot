@@ -43,7 +43,11 @@ def test_creates_reading_with_real_calculation():
     assert d["pillars"]["year"]["ko"] == "무진"
     assert d["pillars"]["hour"] is not None
     assert len(d["tarot"]) == 3
-    assert d["report"] is not None  # 7단계에서 붙었다 (테스트는 가짜 생성기)
+    # v3.0 — 계산 호출은 풀이를 만들지 않는다. POST /{id}/report 로 따로 받는다.
+    assert d["report"] is None
+    # 대신 나중에 풀이를 만들 재료가 저장돼 있어야 한다
+    assert d["topics"] == VALID["topics"]
+    assert d["interpretation"]["summary_facts"]
     assert "lunar-python" in d["engine_version"]
 
 

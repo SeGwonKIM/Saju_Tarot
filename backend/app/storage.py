@@ -131,6 +131,20 @@ class Storage:
             payload=payload, created_at=now, expires_at=expires,
         )
 
+    def update_payload(self, reading_id: str, payload: dict[str, Any]) -> bool:
+        """계산 결과는 그대로 두고 payload 만 갈아 끼운다.
+
+        풀이 문장을 나중에 채우기 위한 것이다. 계산은 49ms 인데 문장 생성은
+        10초가 넘는다. 먼저 계산만 저장해 손님에게 보여주고, 문장이 오면
+        여기로 덮는다. 이름·생년월일(암호화된 칸)과 보관 기간은 건드리지 않는다.
+        """
+        with self._connect() as con:
+            cur = con.execute(
+                "UPDATE readings SET payload = ? WHERE id = ?",
+                (json.dumps(payload, ensure_ascii=False), reading_id),
+            )
+        return cur.rowcount > 0
+
     def get(self, reading_id: str) -> StoredReading | None:
         with self._connect() as con:
             row = con.execute(

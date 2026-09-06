@@ -21,8 +21,14 @@ log = logging.getLogger("saju.ratelimit")
 WINDOW_SECONDS = 3600
 
 # 비용이 드는 경로만 죈다. 조회·헬스체크는 대상이 아니다.
+#
+# v3.0 에서 계산과 풀이를 갈랐다. 돈이 드는 것은 **풀이 생성 하나뿐**이다.
+#   POST /readings              계산만 — 49ms, 공짜        → 안 센다
+#   POST /readings/{id}/report  LLM 호출 — 건당 약 50원    → 센다
+#   POST /readings/{id}/share   공유 링크 — 공짜           → 안 센다
+# 예전처럼 prefix 로 죄면 계산·공유까지 세어 손님이 실제 쓴 것보다 빨리 막힌다.
 COSTLY_METHODS = {"POST"}
-COSTLY_PREFIXES = ("/api/v1/readings",)
+COSTLY_SUFFIX = "/report"
 
 PER_IP_LIMIT = 10
 GLOBAL_LIMIT = 100
@@ -64,7 +70,7 @@ def _prune(bucket: deque[float], now: float) -> None:
 
 
 def is_costly(request: Request) -> bool:
-    return request.method in COSTLY_METHODS and request.url.path.startswith(COSTLY_PREFIXES)
+    return request.method in COSTLY_METHODS and request.url.path.endswith(COSTLY_SUFFIX)
 
 
 def check(request: Request) -> tuple[bool, int]:

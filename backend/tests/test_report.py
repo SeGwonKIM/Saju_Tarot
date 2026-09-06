@@ -154,8 +154,13 @@ def test_null_generator_returns_none():
 
 
 def test_endpoint_returns_report_when_generation_succeeds(no_network_generator):
-    r = client.post("/api/v1/readings", json=VALID)
-    assert r.status_code == 201
+    """계산 → 풀이 두 단계로 받는다 (v3.0)."""
+    first = client.post("/api/v1/readings", json=VALID)
+    assert first.status_code == 201
+    assert first.json()["report"] is None, "계산 단계에서는 풀이가 없다"
+
+    r = client.post(f"/api/v1/readings/{first.json()['id']}/report")
+    assert r.status_code == 200
     d = r.json()
     assert len(d["report"]["monthly_flow"]) == 3
     assert set(d["report"]["advice"]) == set(VALID["topics"])
@@ -163,12 +168,25 @@ def test_endpoint_returns_report_when_generation_succeeds(no_network_generator):
     assert d["report_model"] == "fake-model"
 
 
+def test_report_is_not_regenerated(no_network_generator):
+    """이미 만든 풀이는 다시 만들지 않는다 — 새로고침해도 요금이 두 번 안 나간다."""
+    rid = client.post("/api/v1/readings", json=VALID).json()["id"]
+    first = client.post(f"/api/v1/readings/{rid}/report").json()
+    again = client.post(f"/api/v1/readings/{rid}/report").json()
+    assert again["report"] == first["report"]
+
+
+def test_report_on_missing_reading_is_404(no_network_generator):
+    assert client.post("/api/v1/readings/r-nope/report").status_code == 404
+
+
 def test_endpoint_survives_generation_failure():
     """문장 생성이 실패해도 계산 결과는 그대로 나가고 500 이 아니다."""
     app.dependency_overrides[get_generator] = lambda: FakeReportGenerator(fail=True)
     try:
-        r = client.post("/api/v1/readings", json=VALID)
-        assert r.status_code == 201
+        rid = client.post("/api/v1/readings", json=VALID).json()["id"]
+        r = client.post(f"/api/v1/readings/{rid}/report")
+        assert r.status_code == 200
         d = r.json()
         assert d["report"] is None
         assert d["report_model"] is None
@@ -179,7 +197,13 @@ def test_endpoint_survives_generation_failure():
 
 
 def test_generator_receives_only_selected_topics(no_network_generator):
-    client.post("/api/v1/readings", json={**VALID, "topics": ["재물"]})
+    """주제와 이름이 두 단계를 건너서도 그대로 전달되어야 한다 (v3.0).
+
+    이름은 암호화되어 저장되므로, 풀이 단계에서 복호화해 넘긴다.
+    주제는 계산 단계에서 payload 에 저장해 두지 않으면 여기서 알 수 없다.
+    """
+    rid = client.post("/api/v1/readings", json={**VALID, "topics": ["재물"]}).json()["id"]
+    client.post(f"/api/v1/readings/{rid}/report")
     _, name, topics = no_network_generator.calls[-1]
     assert topics == ["재물"]
     assert name == "홍길동"

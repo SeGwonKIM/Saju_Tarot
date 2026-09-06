@@ -30,13 +30,23 @@ def clean():
     rate_limit.reset()
 
 
+# 돈이 드는 창구는 풀이 생성 하나뿐이다 (v3.0). 계산은 공짜라 세지 않는다.
+#
+# 없는 id 를 부른다. 레이트리밋은 미들웨어라 핸들러보다 **먼저** 돌기 때문에,
+# 통과하면 404, 막히면 429 가 온다. LLM 을 부르지 않으므로 테스트가 요금을
+# 쓰지도, 네트워크를 타지도 않는다.
+NOT_FOUND = 404
+
+
 def post(ip: str = "1.2.3.4"):
-    return client.post("/api/v1/readings", json=BODY, headers={"X-Forwarded-For": ip})
+    return client.post(
+        "/api/v1/readings/r-nonexistent/report", headers={"X-Forwarded-For": ip}
+    )
 
 
 def test_allows_up_to_the_limit():
     for i in range(rate_limit.PER_IP_LIMIT):
-        assert post().status_code == 201, f"{i + 1}번째가 막혔다"
+        assert post().status_code == NOT_FOUND, f"{i + 1}번째가 막혔다"
 
 
 def test_blocks_after_limit():
@@ -53,7 +63,7 @@ def test_limit_is_per_ip():
     for _ in range(rate_limit.PER_IP_LIMIT):
         post(ip="1.1.1.1")
     assert post(ip="1.1.1.1").status_code == 429
-    assert post(ip="2.2.2.2").status_code == 201
+    assert post(ip="2.2.2.2").status_code == NOT_FOUND
 
 
 def test_global_limit_protects_the_bill():
@@ -61,6 +71,20 @@ def test_global_limit_protects_the_bill():
     for i in range(rate_limit.GLOBAL_LIMIT):
         post(ip=f"10.0.{i // 250}.{i % 250}")
     assert post(ip="9.9.9.9").status_code == 429
+
+
+def test_calculation_is_not_limited():
+    """계산은 공짜다 — 한도의 세 배를 불러도 막히면 안 된다 (v3.0).
+
+    예전에는 `POST /readings` 도 셌다. 그때는 이 호출이 곧 LLM 호출이었기
+    때문이다. 지금은 계산만 하므로, 세면 손님이 실제 쓴 것보다 빨리 막힌다.
+    """
+    for i in range(rate_limit.PER_IP_LIMIT * 3):
+        r = client.post(
+            "/api/v1/readings", json=BODY, headers={"X-Forwarded-For": "3.3.3.3"}
+        )
+        assert r.status_code == 201, f"{i + 1}번째 계산이 막혔다"
+        assert r.json()["report"] is None, "계산 호출은 풀이를 만들지 않는다"
 
 
 def test_reads_are_not_limited():

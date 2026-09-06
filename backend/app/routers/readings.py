@@ -169,6 +169,8 @@ class InterpretationOut(BaseModel):
     yin_yang: str
     shishen: dict[str, int]
     dominant: list[str]
+    summary_facts: list[str] = []
+    """모델에 넘길 사실 문장. **저장해 두어야** 나중에 풀이를 다시 만들 수 있다"""
 
 
 class ReportOut(BaseModel):
@@ -189,6 +191,8 @@ class ReadingResponse(BaseModel):
     """사주 풀이 재료 — 일간·십성 (PRD §8.7)"""
     period: PeriodOut
     """이번 달 기운 — 세운·월운. 원국과 달리 달마다 바뀐다 (PRD §8.5)"""
+    topics: list[str] = []
+    """상담 주제. 풀이를 나중에 만들 때 다시 필요하므로 저장해 둔다"""
     report: ReportOut | None = None
     """생성 실패·키 없음이면 null — 계산 결과만 보여준다 (PRD §11.3 부분 성공)"""
     report_model: str | None = None
@@ -227,9 +231,13 @@ class ListItem(BaseModel):
 @router.post("", response_model=ReadingResponse, status_code=201)
 def create_reading(
     body: ReadingRequest,
-    generator: ReportGenerator = Depends(get_generator),
     storage: Storage = Depends(get_storage),
 ) -> ReadingResponse:
+    """만세력·오행·타로만 계산해 **즉시** 돌려준다 (v3.0).
+
+    풀이 문장은 `POST /readings/{id}/report` 로 따로 받는다. 계산은 49ms 인데
+    문장은 10초가 넘어서, 한 번에 처리하면 손님이 그동안 빈 화면을 본다.
+    """
     solar = _to_solar(body)
 
     # 시간 미상이면 정오를 기준으로 절기·일주만 잡고 시주는 만들지 않는다 (PRD §8.3)
@@ -264,27 +272,10 @@ def create_reading(
     cards = draw(seed)
     tarot_out = [TarotOut(**c.__dict__) for c in cards]
 
-    # 문장 생성 — 실패해도 계산 결과는 그대로 돌려준다 (PRD §11.3)
-    facts = build_facts(
-        pillars={
-            "year": chart.year.__dict__,
-            "month": chart.month.__dict__,
-            "day": chart.day.__dict__,
-            "hour": chart.hour.__dict__ if chart.hour else None,
-        },
-        elements=chart.elements.counts,
-        verdict=chart.elements.verdict,
-        tarot=[c.model_dump() for c in tarot_out],
-        period=period.label,
-        interpretation=reading.summary_facts,
-        basis=(
-            f"{corrected.clock.isoformat(timespec='minutes')} "
-            f"(진태양시 {corrected.true_solar_correction_min}분 보정, "
-            f"서머타임 {'적용' if corrected.dst_applied else '미적용'}, {rule} 기준)"
-        ),
-    )
-    report = generator.generate(facts, body.name, list(body.topics))
-
+    # 풀이 문장은 여기서 만들지 않는다 (v3.0).
+    #  계산은 49ms, 문장은 10초가 넘는다. 한 번에 처리하면 손님이 그 10초 동안
+    #  빈 화면을 본다. 계산 결과를 먼저 돌려주고, 문장은 POST /{id}/report 로
+    #  이어서 받는다. facts 는 그때 저장된 값으로 다시 만든다.
     response = ReadingResponse(
         id=f"r-{seed:016x}",
         input_echo=InputEcho(
@@ -313,20 +304,14 @@ def create_reading(
             yin_yang=reading.day_master.yin_yang,
             shishen=reading.shishen,
             dominant=reading.dominant,
+            summary_facts=list(reading.summary_facts),
         ),
         period=PeriodOut(
             year_ko=period.year.ko, month_ko=period.month.ko, label=period.label
         ),
-        report=ReportOut(
-            saju_reading=report.saju_reading,
-            monthly_flow=report.monthly_flow,
-            advice=report.advice,
-            keywords=report.keywords,
-            disclaimer=report.disclaimer,
-        )
-        if report
-        else None,
-        report_model=report.model if report else None,
+        topics=list(body.topics),
+        report=None,
+        report_model=None,
         engine_version=chart.engine_version,
         tarot_seed=seed,
         draft_before_tone_learning=not tone_is_active(),
@@ -345,6 +330,79 @@ def create_reading(
         retention_days=settings.data_retention_days,
     )
     return response
+
+
+def _facts_from_payload(payload: dict) -> str:
+    """저장된 계산 결과로 모델에 넘길 사실 블록을 다시 만든다.
+
+    계산을 다시 하지 않는다 — 저장된 값이 곧 확정된 사실이다. 다시 계산하면
+    타로 카드가 달라지거나(절입일이 지났다면) 값이 어긋날 수 있다.
+    """
+    echo = payload["input_echo"]
+    elements = {k: v for k, v in payload["elements"].items() if k != "verdict"}
+    return build_facts(
+        pillars=payload["pillars"],
+        elements=elements,
+        verdict=payload["elements"]["verdict"],
+        tarot=payload["tarot"],
+        period=payload.get("period", {}).get("label", ""),
+        interpretation=payload.get("interpretation", {}).get("summary_facts") or None,
+        basis=(
+            f"{echo['solar_datetime']} "
+            f"(진태양시 {echo['true_solar_correction_min']}분 보정, "
+            f"서머타임 {'적용' if echo['dst_applied'] else '미적용'}, "
+            f"{echo['midnight_rule']} 기준)"
+        ),
+    )
+
+
+@router.post("/{reading_id}/report", response_model=ReadingResponse)
+def create_report(
+    reading_id: str = PathParam(min_length=3, max_length=64),
+    generator: ReportGenerator = Depends(get_generator),
+    storage: Storage = Depends(get_storage),
+) -> ReadingResponse:
+    """저장된 계산 결과에 풀이 문장을 채운다 (v3.0).
+
+    **요금이 드는 창구는 여기 하나다.** 계산만 하는 POST /readings 는 공짜이므로
+    레이트리밋도 이 경로만 센다 (§12.5).
+
+    이미 풀이가 있으면 다시 만들지 않고 그대로 돌려준다 — 손님이 새로고침해도
+    요금이 두 번 나가지 않게 하는 장치다.
+    """
+    stored = storage.get(reading_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="없는 리포트입니다.")
+
+    payload = stored.payload
+
+    # 이미 만들어 둔 것이 있으면 그대로 (새로고침 방어)
+    if payload.get("report"):
+        return ReadingResponse(id=reading_id, **payload)
+
+    topics = payload.get("topics") or []
+    if not topics:
+        # v3.0 이전에 저장된 리포트에는 주제가 없다. 다시 만들 수 없다.
+        raise HTTPException(
+            status_code=409,
+            detail="이 리포트는 풀이를 다시 만들 수 없습니다. 새로 입력해 주세요.",
+        )
+
+    report = generator.generate(_facts_from_payload(payload), stored.name, list(topics))
+
+    # 실패해도 계산 결과는 그대로 유효하다 (PRD §11.3 부분 성공)
+    if report is not None:
+        payload["report"] = {
+            "saju_reading": report.saju_reading,
+            "monthly_flow": report.monthly_flow,
+            "advice": report.advice,
+            "keywords": report.keywords,
+            "disclaimer": report.disclaimer,
+        }
+        payload["report_model"] = report.model
+        storage.update_payload(reading_id, payload)
+
+    return ReadingResponse(id=reading_id, **payload)
 
 
 @router.get("/{reading_id}", response_model=ReadingResponse)
