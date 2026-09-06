@@ -40,7 +40,12 @@ def get_generator() -> ReportGenerator:
     """
     settings = get_settings()
     if settings.openai_api_key and settings.openai_api_key != "CHANGE_ME":
-        return OpenAIReportGenerator(settings.openai_api_key, settings.report_model)
+        return OpenAIReportGenerator(
+            settings.openai_api_key,
+            settings.report_model,
+            reasoning_effort=settings.report_reasoning_effort,
+            max_completion_tokens=settings.report_max_tokens,
+        )
     return NullReportGenerator()
 
 

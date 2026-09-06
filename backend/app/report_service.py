@@ -217,13 +217,40 @@ def has_banned_word(report: Report) -> str | None:
 class OpenAIReportGenerator:
     """OpenAI 구현. 스키마 강제 + 금지어 검사 실패 시 1회 재생성."""
 
-    def __init__(self, api_key: str, model: str, timeout: float = 60.0) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        timeout: float = 60.0,
+        reasoning_effort: str = "low",
+        max_completion_tokens: int = 2000,
+    ) -> None:
         from openai import OpenAI
 
         self._client = OpenAI(api_key=api_key, timeout=timeout)
         self._model = model
 
+        # ── 추론 강도 ────────────────────────────────────────
+        #  이 작업은 계산이 이미 끝난 사실을 문장으로 옮기는 일이라
+        #  모델이 오래 생각할 필요가 없다. 기본값(medium)으로 재보니
+        #  출력 712토큰 중 512토큰이 추론에 쓰였고 응답이 두 배 느렸다.
+        #    기본값  10.0~11.5초 / 712~850토큰
+        #    low      4.9~ 6.8초 / 251~352토큰   ← 문장 품질은 같다
+        #  빈 문자열이면 파라미터를 보내지 않는다(추론을 지원하지 않는
+        #  모델로 바꿀 때를 위해).
+        self._effort = reasoning_effort
+
+        # 출력 상한. 없으면 길이를 제어할 수단이 없다.
+        # 추론 토큰까지 포함해 세므로 넉넉히 잡는다.
+        self._max_tokens = max_completion_tokens
+
     def generate(self, facts: str, name: str, topics: list[str]) -> Report | None:
+        extra: dict = {}
+        if self._effort:
+            extra["reasoning_effort"] = self._effort
+        if self._max_tokens:
+            extra["max_completion_tokens"] = self._max_tokens
+
         for attempt in (1, 2):
             try:
                 res = self._client.chat.completions.create(
@@ -233,6 +260,7 @@ class OpenAIReportGenerator:
                         {"role": "user", "content": _user_prompt(facts, name, topics)},
                     ],
                     response_format={"type": "json_schema", "json_schema": _schema(topics)},
+                    **extra,
                 )
                 raw = json.loads(res.choices[0].message.content or "{}")
                 report = Report(
