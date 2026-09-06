@@ -10,7 +10,7 @@ import ElementBar from '../components/report/ElementBar'
 import PillarGrid from '../components/report/PillarGrid'
 import TarotCard from '../components/report/TarotCard'
 import { Card } from '../components/ui'
-import { getReading, saveReading } from '../lib/store'
+import { getReading, saveReading, getName } from '../lib/store'
 
 /**
  * 풀이를 기다리는 동안 보여주는 자리 (v3.0).
@@ -58,6 +58,8 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
   const [copied, setCopied] = useState(false)
+  // 이름은 서버가 주지 않는다. 만든 사람의 브라우저에만 있고, 없으면 안 보인다.
+  const name = mode === 'own' ? getName(id) : null
 
   // 풀이 문장은 계산과 따로 온다 (v3.0). 계산은 0.3초, 풀이는 14초.
   const [writing, setWriting] = useState(false)
@@ -160,16 +162,16 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
       {/* ① 헤더 */}
       <header className="border-b border-paper-200 bg-gradient-to-b from-ink-900 to-ink-950 dark:border-ink-800">
         <div className="starfield mx-auto max-w-2xl px-5 py-10">
-          <Link to="/" className="text-xs text-ink-400 hover:text-gold-300">
-            ← 다시 입력
-          </Link>
-          <h1 className="mt-4 font-display text-2xl font-bold text-paper-50">
+          <h1 className="font-display text-2xl font-bold text-paper-50">
             이번 달 흐름 리포트
           </h1>
           <p className="mt-2 text-sm font-medium text-gold-300">{period.label}</p>
-          {/* 공유 링크에는 생년월일시가 오지 않는다 (PRD §12.14) */}
+          {/* 공유 링크에는 생년월일시도 이름도 오지 않는다 (PRD §12.14).
+              이름은 서버가 주지 않는다 — 만든 사람의 브라우저에만 있다. */}
           {echo.solar_datetime ? (
             <p className="mt-1 text-sm text-ink-300">
+              {name && <span className="font-semibold text-paper-100">{name}</span>}
+              {name && ' · '}
               {echo.solar_datetime.slice(0, 10)}
               {pillars.hour ? ` ${echo.solar_datetime.slice(11, 16)}` : ' (시간 미상)'} 기준
             </p>
@@ -422,7 +424,7 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
             <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-300">
               읽기 전용 링크입니다. 생년월일·시간은 링크에 담기지 않습니다.
             </p>
-            {shareUrl ? (
+            {shareUrl && (
               <div className="mt-4 space-y-2">
                 <code className="block break-all rounded-lg bg-paper-100 px-3 py-2 text-xs text-ink-700 dark:bg-ink-900 dark:text-paper-200">
                   {shareUrl}
@@ -431,16 +433,28 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
                   {copied ? '복사했습니다. 그대로 붙여넣으시면 됩니다.' : '위 주소를 복사해 보내세요.'}
                 </p>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleShare}
-                disabled={sharing}
-                className="mt-4 rounded-xl bg-ink-900 px-5 py-3 text-sm font-semibold text-paper-50 disabled:opacity-60 dark:bg-gold-500 dark:text-ink-950"
-              >
-                {sharing ? '만드는 중…' : '공유 링크 만들기'}
-              </button>
             )}
+
+            {/* 두 단추는 항상 보인다. 공유 링크를 만든 뒤에도
+                "다시 시작하기"가 사라지면 손님이 나갈 길을 잃는다. */}
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {!shareUrl && (
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  disabled={sharing}
+                  className="rounded-xl bg-ink-900 px-5 py-3 text-sm font-semibold text-paper-50 disabled:opacity-60 dark:bg-gold-500 dark:text-ink-950"
+                >
+                  {sharing ? '만드는 중…' : '공유 링크 만들기'}
+                </button>
+              )}
+              <Link
+                to="/"
+                className="rounded-xl border border-paper-300 px-5 py-3 text-sm font-semibold text-ink-700 hover:bg-paper-100 dark:border-ink-700 dark:text-paper-200 dark:hover:bg-ink-900"
+              >
+                다시 시작하기
+              </Link>
+            </div>
           </Card>
         )}
 

@@ -11,7 +11,7 @@ import { useNavigate } from 'react-router-dom'
 import BirthForm from '../components/form/BirthForm'
 import MysticVisual from '../components/MysticVisual'
 import { createReading, getHealth, usingMock } from '../api/readings'
-import { saveReading } from '../lib/store'
+import { saveReading, saveName } from '../lib/store'
 import type { ReadingRequest } from '../schemas/reading'
 
 export default function HomePage() {
@@ -34,6 +34,7 @@ export default function HomePage() {
     try {
       const reading = await createReading(input)
       saveReading(reading)
+      saveName(reading.id, input.name)   // 서버로는 안 간다 (store.ts 주석 참고)
       navigate(`/result/${reading.id}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : '잠시 후 다시 시도해 주세요.')
