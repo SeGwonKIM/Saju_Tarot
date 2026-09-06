@@ -176,6 +176,37 @@ def test_report_is_not_regenerated(no_network_generator):
     assert again["report"] == first["report"]
 
 
+def test_same_person_same_name_reuses_the_report(no_network_generator):
+    """같은 사주·같은 달·같은 이름이면 **같은 글**이 나온다 (v3.2).
+
+    LLM 은 같은 사실을 매번 다른 말로 쓴다. 그냥 두면 같은 사람이 다시 봐도
+    다른 리포트가 나와 신뢰가 서지 않는다. 타로가 같은 카드를 내는 것과
+    같은 이유로 글도 고정한다. 덤으로 두 번째부터는 LLM 을 부르지 않는다.
+    """
+    body = {**VALID, "name": "재사용시험"}
+    a = client.post("/api/v1/readings", json=body).json()["id"]
+    first = client.post(f"/api/v1/readings/{a}/report").json()["report"]
+    calls = len(no_network_generator.calls)
+
+    b = client.post("/api/v1/readings", json=body).json()["id"]
+    second = client.post(f"/api/v1/readings/{b}/report").json()["report"]
+
+    assert a != b, "주소는 매번 새로 만든다"
+    assert second == first, "같은 이름이면 같은 글이어야 한다"
+    assert len(no_network_generator.calls) == calls, "두 번째는 LLM 을 부르지 않는다"
+
+
+def test_same_birth_different_name_gets_a_new_report(no_network_generator):
+    """생년월일이 같아도 **이름이 다르면 새로 쓴다** (v3.2 · 사용자 요청)."""
+    a = client.post("/api/v1/readings", json={**VALID, "name": "이름가"}).json()["id"]
+    client.post(f"/api/v1/readings/{a}/report")
+    calls = len(no_network_generator.calls)
+
+    b = client.post("/api/v1/readings", json={**VALID, "name": "이름나"}).json()["id"]
+    client.post(f"/api/v1/readings/{b}/report")
+    assert len(no_network_generator.calls) == calls + 1, "이름이 다르면 새로 만들어야 한다"
+
+
 def test_report_on_missing_reading_is_404(no_network_generator):
     assert client.post("/api/v1/readings/r-nope/report").status_code == 404
 
@@ -184,7 +215,11 @@ def test_endpoint_survives_generation_failure():
     """문장 생성이 실패해도 계산 결과는 그대로 나가고 500 이 아니다."""
     app.dependency_overrides[get_generator] = lambda: FakeReportGenerator(fail=True)
     try:
-        rid = client.post("/api/v1/readings", json=VALID).json()["id"]
+        # 이름을 달리해 재사용을 피한다 — 같은 이름이면 앞서 만든 풀이를
+        # 그대로 쓰므로(v3.2), 생성 실패 경로를 시험할 수 없다.
+        rid = client.post(
+            "/api/v1/readings", json={**VALID, "name": "생성실패시험"}
+        ).json()["id"]
         r = client.post(f"/api/v1/readings/{rid}/report")
         assert r.status_code == 200
         d = r.json()
@@ -202,11 +237,13 @@ def test_generator_receives_only_selected_topics(no_network_generator):
     이름은 암호화되어 저장되므로, 풀이 단계에서 복호화해 넘긴다.
     주제는 계산 단계에서 payload 에 저장해 두지 않으면 여기서 알 수 없다.
     """
-    rid = client.post("/api/v1/readings", json={**VALID, "topics": ["재물"]}).json()["id"]
+    rid = client.post(
+        "/api/v1/readings", json={**VALID, "topics": ["재물"], "name": "주제전달시험"}
+    ).json()["id"]
     client.post(f"/api/v1/readings/{rid}/report")
     _, name, topics = no_network_generator.calls[-1]
     assert topics == ["재물"]
-    assert name == "홍길동"
+    assert name == "주제전달시험", "암호화된 이름을 복호화해 넘겨야 한다"
 
 
 # ── 실제 호출 (기본 제외, `pytest -m live` 로만 실행) ─────────

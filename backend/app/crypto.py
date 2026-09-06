@@ -15,6 +15,8 @@
 from __future__ import annotations
 
 import base64
+import hmac
+import hashlib
 import logging
 import os
 from pathlib import Path
@@ -52,7 +54,18 @@ def _load_or_create_key(env_key: str = "") -> bytes:
 
 class FieldCipher:
     def __init__(self, env_key: str = "") -> None:
-        self._aes = AESGCM(_load_or_create_key(env_key))
+        self._key = _load_or_create_key(env_key)
+        self._aes = AESGCM(self._key)
+
+    def fingerprint(self, value: str) -> str:
+        """같은 값인지 **대조만** 할 수 있는 지문을 만든다.
+
+        암호화 키로 HMAC 을 건다. 그냥 해시로 두면 안 된다 — 생년월일은
+        경우의 수가 적어서, DB 만 새어도 훑어서 원래 값을 찾아낼 수 있다
+        (실제로 타로 seed 로 1.6초 만에 복원한 적이 있다, PRD v3.1 ⑪).
+        키가 없으면 대입해도 맞출 수 없다.
+        """
+        return hmac.new(self._key, value.encode(), hashlib.sha256).hexdigest()
 
     def encrypt(self, plaintext: str) -> str:
         nonce = os.urandom(NONCE_BYTES)

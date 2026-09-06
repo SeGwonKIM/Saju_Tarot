@@ -335,6 +335,15 @@ def create_reading(
     settings = get_settings()
     payload = response.model_dump()
     payload.pop("id", None)
+    payload["chart_key"] = None  # 응답·공유로 나가면 안 된다. 열에만 둔다
+    # 같은 사주·같은 달·같은 이름인지 대조할 지문 (v3.2).
+    #  이름을 넣는 이유 — 생년월일이 같아도 **이름이 다르면 다른 글**이 나오고,
+    #  이름까지 같으면 같은 글이 나오게 하기 위해서다.
+    #  암호화 키로 HMAC 을 걸어, DB 만 새어도 원래 값을 되돌릴 수 없다.
+    chart_key = storage.fingerprint(
+        f"{birth_key}|{period.year.ko}|{period.month.ko}|{body.name.strip()}"
+    )
+
     storage.save(
         response.id,
         name=body.name,
@@ -342,8 +351,18 @@ def create_reading(
         birth=f"{body.calendar_type} {body.birth_date} {body.birth_time or '시간미상'}",
         payload=payload,
         retention_days=settings.data_retention_days,
+        chart_key=chart_key,
     )
     return response
+
+
+def _chart_key_of(reading_id: str, storage: Storage) -> str | None:
+    """저장된 지문을 읽어 온다. 응답에는 절대 담지 않는다 (PRD v3.1 ⑪)."""
+    with storage._connect() as con:  # noqa: SLF001 — 이 모듈 밖으로 SQL 을 내지 않는다
+        row = con.execute(
+            "SELECT chart_key FROM readings WHERE id = ?", (reading_id,)
+        ).fetchone()
+    return row["chart_key"] if row else None
 
 
 def _facts_from_payload(payload: dict) -> str:
@@ -401,6 +420,19 @@ def create_report(
             status_code=409,
             detail="이 리포트는 풀이를 다시 만들 수 없습니다. 새로 입력해 주세요.",
         )
+
+    # 같은 사주·같은 달·같은 이름으로 이미 쓴 글이 있으면 그대로 쓴다 (v3.2).
+    #  같은 사람이 다시 보면 같은 글이 나와야 한다 — 타로가 같은 카드를 내는 것과
+    #  같은 이유다. LLM 은 같은 사실을 매번 다른 말로 써서, 그냥 두면 새로고침
+    #  한 번에 다른 리포트가 된다. 덤으로 두 번째부터는 요금이 들지 않는다.
+    key = _chart_key_of(reading_id, storage)
+    if key:
+        twin = storage.find_report(key, exclude_id=reading_id)
+        if twin:
+            payload["report"] = twin["report"]
+            payload["report_model"] = twin.get("report_model")
+            storage.update_payload(reading_id, payload)
+            return ReadingResponse(id=reading_id, **payload)
 
     report = generator.generate(_facts_from_payload(payload), stored.name, list(topics))
 

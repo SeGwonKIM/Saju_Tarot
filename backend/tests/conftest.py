@@ -9,10 +9,26 @@
 
 import pytest
 
-from app import rate_limit
+from app import rate_limit, storage as storage_module
 from app.main import app
 from app.report_service import Report
 from app.routers.readings import get_generator
+
+
+@pytest.fixture(autouse=True, scope="session")
+def isolated_db(tmp_path_factory):
+    """테스트는 **임시 DB** 를 쓴다.
+
+    이 장치가 없으면 테스트가 실제 data/readings.db 에 행을 쌓는다
+    (실제로 433행이 쌓여 있었다). 손님 데이터와 섞이는 것도 문제지만,
+    v3.2 의 "같은 사주·같은 이름이면 풀이를 재사용한다" 규칙 때문에
+    **지난 실행분이 이번 실행에 되살아나** 테스트가 엉뚱하게 통과·실패한다.
+    실제로 그 일이 일어나서 이 격리를 넣었다.
+    """
+    storage_module._storage = None
+    storage_module.DB_PATH = tmp_path_factory.mktemp("db") / "test.db"
+    yield
+    storage_module._storage = None
 
 
 class FakeReportGenerator:

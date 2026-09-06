@@ -36,7 +36,9 @@ CREATE TABLE IF NOT EXISTS readings (
     gender        TEXT NOT NULL,
     payload       TEXT NOT NULL,   -- 계산 결과·리포트 (개인 식별 정보 제외)
     created_at    TEXT NOT NULL,
-    expires_at    TEXT NOT NULL
+    expires_at    TEXT NOT NULL,
+    -- 같은 사람·같은 달인지 대조하는 지문 (이름 포함). 원문을 되돌릴 수 없다.
+    chart_key     TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_readings_expires ON readings(expires_at);
 
@@ -87,6 +89,15 @@ class Storage:
         self._cipher = FieldCipher(env_key)
         with self._connect() as con:
             con.executescript(SCHEMA)
+            # 이미 만들어진 DB 에는 CREATE TABLE 이 안 먹는다. 열을 따로 더한다.
+            #  색인은 SCHEMA 에 넣으면 안 된다 — 옛 DB 에는 아직 열이 없어서
+            #  CREATE INDEX 가 그 자리에서 터진다(IF NOT EXISTS 로도 안 막힌다).
+            cols = {r[1] for r in con.execute("PRAGMA table_info(readings)")}
+            if "chart_key" not in cols:
+                con.execute("ALTER TABLE readings ADD COLUMN chart_key TEXT")
+            con.execute(
+                "CREATE INDEX IF NOT EXISTS idx_readings_chart ON readings(chart_key)"
+            )
 
     def _connect(self) -> sqlite3.Connection:
         con = sqlite3.connect(self._path)
@@ -108,14 +119,15 @@ class Storage:
         birth: str,
         payload: dict[str, Any],
         retention_days: int,
+        chart_key: str | None = None,
     ) -> StoredReading:
         now = datetime.now()
         expires = now + timedelta(days=retention_days)
         with self._connect() as con:
             con.execute(
                 "INSERT OR REPLACE INTO readings"
-                " (id, name_enc, birth_enc, gender, payload, created_at, expires_at)"
-                " VALUES (?, ?, ?, ?, ?, ?, ?)",
+                " (id, name_enc, birth_enc, gender, payload, created_at, expires_at, chart_key)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     reading_id,
                     self._cipher.encrypt(name),
@@ -124,6 +136,7 @@ class Storage:
                     json.dumps(payload, ensure_ascii=False),
                     now.isoformat(timespec="seconds"),
                     expires.isoformat(timespec="seconds"),
+                    chart_key,
                 ),
             )
         return StoredReading(
@@ -144,6 +157,29 @@ class Storage:
                 (json.dumps(payload, ensure_ascii=False), reading_id),
             )
         return cur.rowcount > 0
+
+    def fingerprint(self, value: str) -> str:
+        """대조용 지문. 키가 없으면 원래 값을 알 수 없다."""
+        return self._cipher.fingerprint(value)
+
+    def find_report(self, chart_key: str, exclude_id: str) -> dict[str, Any] | None:
+        """같은 사주·같은 이름으로 **이미 만들어 둔 풀이**를 찾는다.
+
+        같은 사람이 같은 달에 다시 보면 같은 글이 나와야 한다 — 타로가
+        같은 카드를 내는 것과 같은 이유다(PRD §8.6). 덤으로 두 번째부터는
+        LLM 을 부르지 않아 요금이 들지 않는다.
+        """
+        with self._connect() as con:
+            rows = con.execute(
+                "SELECT payload FROM readings"
+                " WHERE chart_key = ? AND id != ? ORDER BY created_at DESC LIMIT 20",
+                (chart_key, exclude_id),
+            ).fetchall()
+        for row in rows:
+            payload = json.loads(row["payload"])
+            if payload.get("report"):
+                return payload
+        return None
 
     def get(self, reading_id: str) -> StoredReading | None:
         with self._connect() as con:
