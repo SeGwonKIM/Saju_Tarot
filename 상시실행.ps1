@@ -1,4 +1,4 @@
-﻿# 청단사주타로 — 상시 실행 (가입 없이 쓰는 방식)
+﻿# 세권사주타로 — 상시 실행 (가입 없이 쓰는 방식)
 #
 # 서버와 터널을 띄우고, 터널이 끊기면 자동으로 다시 연결한다.
 # 지금 주소는 항상 현재주소.txt 에 적어 둔다.
@@ -25,7 +25,7 @@ $터널로그 = Join-Path $env:TEMP "saju-tunnel.log"
 function 알림($글, $색 = "Gray") { Write-Host "  $글" -ForegroundColor $색 }
 
 Write-Host ""
-Write-Host "청단사주타로 — 상시 실행" -ForegroundColor Yellow
+Write-Host "세권사주타로 — 상시 실행" -ForegroundColor Yellow
 Write-Host "────────────────────────────────────────" -ForegroundColor DarkGray
 
 # ── 준비 확인 ────────────────────────────────────────────

@@ -1,4 +1,4 @@
-# 청단사주타로 — 리포트 DB 백업 (PRD §12.17)
+﻿# 세권사주타로 — 리포트 DB 백업 (PRD §12.17)
 #
 # 실행:  .\백업.ps1                    백업 만들기
 #        .\백업.ps1 -목록               백업 목록
@@ -18,7 +18,7 @@ $파이썬 = Join-Path $루트 "backend\.venv\Scripts\python.exe"
 $도구 = "tools\backup.py"
 
 Write-Host ""
-Write-Host "청단사주타로 백업" -ForegroundColor Yellow
+Write-Host "세권사주타로 백업" -ForegroundColor Yellow
 Write-Host "────────────────────────────────────" -ForegroundColor DarkGray
 
 if (-not (Test-Path $파이썬)) {

@@ -1,4 +1,4 @@
-# 청단사주타로 (New_sajutarot)
+# 세권사주타로 (New_sajutarot)
 
 > **이 저장소는 [Saju_Tarot](https://github.com/SeGwonKIM/Saju_Tarot) 을 이어받은 작업본입니다.**
 > 이력을 그대로 가져왔고(v2.27까지), 앞으로의 개편은 여기서 합니다.

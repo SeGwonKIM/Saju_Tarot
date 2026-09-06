@@ -185,7 +185,7 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
               {' 기준'}
             </p>
           ) : (
-            <p className="mt-1 text-sm text-ink-400">청단사주타로</p>
+            <p className="mt-1 text-sm text-ink-400">세권사주타로</p>
           )}
         </div>
       </header>

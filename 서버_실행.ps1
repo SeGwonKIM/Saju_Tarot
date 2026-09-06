@@ -1,4 +1,4 @@
-# 청단사주타로 — 내 PC 를 서버로 (PRD §14.6)
+﻿# 세권사주타로 — 내 PC 를 서버로 (PRD §14.6)
 #
 # 화면과 API 를 한 서버가 함께 내보낸다. 주소가 하나라 터널링이 단순하다.
 #
@@ -15,7 +15,7 @@ $루트 = $PSScriptRoot
 $파이썬 = Join-Path $루트 "backend\.venv\Scripts\python.exe"
 
 Write-Host ""
-Write-Host "청단사주타로 서버" -ForegroundColor Yellow
+Write-Host "세권사주타로 서버" -ForegroundColor Yellow
 Write-Host "────────────────────────────────────" -ForegroundColor DarkGray
 
 # ── 1. 준비 확인 ───────────────────────────────────────────
