@@ -15,7 +15,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam
 from pydantic import BaseModel, Field, field_validator
 
-from ..calendar_service import CalendarError, lunar_to_solar
+from ..calendar_service import CalendarError, lunar_to_solar, solar_to_lunar
 from ..config import get_settings
 from ..korea_time import correct
 from ..admin_auth import require_admin
@@ -132,6 +132,13 @@ class PeriodOut(BaseModel):
 
 class InputEcho(BaseModel):
     solar_datetime: str
+    lunar_date: str = ""
+    """같은 날의 음력. 손님이 어느 쪽으로 입력했든 둘 다 보여준다.
+
+    **공유 링크에서는 지운다** — 양력을 지워도 이게 남으면 생년월일이
+    그대로 새어 §12.14 가 무너진다 (storage.redact_for_share 참조).
+    """
+    is_leap_month: bool = False
     true_solar_correction_min: int
     dst_applied: bool
     midnight_rule: str
@@ -251,6 +258,13 @@ def create_reading(
     hh, mm = (int(x) for x in (body.birth_time or "12:00").split(":"))
     clock = datetime(solar.year, solar.month, solar.day, hh, mm)
 
+    # 양력↔음력을 둘 다 보여주기 위해 반대쪽을 구해 둔다.
+    # 변환이 실패해도 리포트는 나가야 한다 — 표시용일 뿐이다.
+    try:
+        lunar_echo = solar_to_lunar(solar.year, solar.month, solar.day)
+    except CalendarError:
+        lunar_echo = None
+
     longitude = BIRTH_PLACES[body.birth_place]
     corrected = correct(clock, longitude)
 
@@ -300,6 +314,8 @@ def create_reading(
         id=reading_id,
         input_echo=InputEcho(
             solar_datetime=corrected.clock.isoformat(timespec="minutes"),
+            lunar_date=lunar_echo.lunar_date if lunar_echo else "",
+            is_leap_month=lunar_echo.is_leap_month if lunar_echo else False,
             true_solar_correction_min=corrected.true_solar_correction_min,
             dst_applied=corrected.dst_applied,
             midnight_rule=rule,

@@ -172,8 +172,17 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
             <p className="mt-1 text-sm text-ink-300">
               {name && <span className="font-semibold text-paper-100">{name}</span>}
               {name && ' · '}
-              {echo.solar_datetime.slice(0, 10)}
-              {pillars.hour ? ` ${echo.solar_datetime.slice(11, 16)}` : ' (시간 미상)'} 기준
+              양력 {echo.solar_datetime.slice(0, 10)}
+              {pillars.hour ? ` ${echo.solar_datetime.slice(11, 16)}` : ' (시간 미상)'}
+              {/* 손님이 어느 쪽으로 넣었든 둘 다 보여준다 */}
+              {echo.lunar_date && (
+                <>
+                  <span className="mx-1.5 text-ink-500">·</span>
+                  음력 {echo.lunar_date}
+                  {echo.is_leap_month && ' (윤달)'}
+                </>
+              )}
+              {' 기준'}
             </p>
           ) : (
             <p className="mt-1 text-sm text-ink-400">청단사주타로</p>

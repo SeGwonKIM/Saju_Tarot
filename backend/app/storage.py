@@ -63,7 +63,9 @@ def redact_for_share(payload: dict[str, Any]) -> dict[str, Any]:
     shared = json.loads(json.dumps(payload, ensure_ascii=False))
     echo = shared.get("input_echo")
     if isinstance(echo, dict):
-        echo.pop("solar_datetime", None)
+        # 양력만 지우면 음력으로 그대로 새어 나간다. 둘 다 지운다.
+        for k in ("solar_datetime", "lunar_date", "is_leap_month"):
+            echo.pop(k, None)
     return shared
 
 

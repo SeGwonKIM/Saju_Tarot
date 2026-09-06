@@ -154,6 +154,8 @@ export const readingSchema = z.object({
   id: z.string(),
   input_echo: z.object({
     solar_datetime: z.string(),
+    lunar_date: z.string().optional(),
+    is_leap_month: z.boolean().optional(),
     true_solar_correction_min: z.number(),
     dst_applied: z.boolean(),
     midnight_rule: z.string(),
