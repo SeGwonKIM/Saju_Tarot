@@ -235,7 +235,15 @@ if DIST.is_dir():
             return FileResponse(candidate, headers={"Cache-Control": "public, max-age=3600"})
         return FileResponse(
             DIST / "index.html",
-            headers={"Cache-Control": "no-store, must-revalidate"},
+            headers={
+                # 세 줄을 다 보내는 이유 — 카카오톡·라인 같은 앱 안의 브라우저는
+                # 오래된 WebView 라 Cache-Control 만으로는 안 듣는 경우가 있다.
+                # 실제로 카톡에서 들어오면 옛 화면이 나왔다. Pragma·Expires 는
+                # HTTP/1.0 시절 헤더지만 그런 구형 클라이언트가 아직 본다.
+                "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
         )
 else:
     log.warning("frontend/dist 가 없습니다. `npm run build` 후 다시 켜면 화면이 함께 서빙됩니다.")
