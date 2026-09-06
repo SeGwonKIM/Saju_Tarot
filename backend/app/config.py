@@ -43,7 +43,7 @@ class Settings(BaseSettings):
     # 오래 생각할 필요가 없다. 실측상 low 가 기본값의 절반 시간에
     # 같은 품질을 낸다. 추론을 지원하지 않는 모델로 바꾸면 빈 값으로 둔다.
     report_reasoning_effort: str = "low"
-    report_max_tokens: int = 2000
+    report_max_tokens: int = 4000   # 풀이 분량을 늘려서 함께 올렸다(v2.27)
     # 상담자 전용 창구 보호 (PRD §12.3). 없으면 첫 실행에 파일로 만든다
     admin_token: str = ""
     supabase_url: str = ""

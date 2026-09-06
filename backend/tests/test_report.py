@@ -221,9 +221,18 @@ def test_banned_word_detected_in_saju_reading():
 
 
 def test_schema_requires_saju_reading():
+    """사주 풀이는 **5항목 고정**이다 (v2.27).
+
+    한 줄짜리 3개로는 상담글이 되지 않아 항목을 늘렸다. 개수를 스키마로 못 박아
+    모델이 마음대로 줄이지 못하게 한다 — 프롬프트로 부탁하면 지키지 않는다.
+    """
     s = _schema(["연애"])["schema"]
     assert "saju_reading" in s["required"]
-    flow = s["properties"]["saju_reading"]
+    block = s["properties"]["saju_reading"]
+    assert block["minItems"] == block["maxItems"] == 5
+
+    # 이번 달 흐름은 3항목 그대로다 ("이번 달 흐름 세 줄"이 서비스 설명이다)
+    flow = s["properties"]["monthly_flow"]
     assert flow["minItems"] == flow["maxItems"] == 3
 
 
