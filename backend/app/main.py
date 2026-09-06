@@ -218,10 +218,24 @@ if DIST.is_dir():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str) -> FileResponse:
-        """API 가 아닌 주소는 전부 화면으로 — 새로고침해도 라우팅이 살아 있게."""
+        """API 가 아닌 주소는 전부 화면으로 — 새로고침해도 라우팅이 살아 있게.
+
+        **index.html 은 캐시하지 않는다.** 이 파일이 어떤 JS 를 쓸지 가리키고,
+        JS 이름에는 내용 해시가 붙는다. index.html 이 캐시되면 새로 배포해도
+        브라우저가 옛 이름을 계속 불러 **옛 화면이 그대로 뜬다.**
+        헤더를 아무것도 안 주면 브라우저가 Last-Modified 를 근거로 알아서
+        캐시하므로, 명시적으로 막아야 한다 — 실제로 새 버전을 올리고도
+        옛 화면이 나왔다.
+
+        반대로 이름에 해시가 붙은 파일은 내용이 바뀌면 이름도 바뀌니
+        캐시해도 안전하고, 그래야 빠르다.
+        """
         candidate = (DIST / full_path).resolve()
         if full_path and candidate.is_file() and DIST.resolve() in candidate.parents:
-            return FileResponse(candidate)
-        return FileResponse(DIST / "index.html")
+            return FileResponse(candidate, headers={"Cache-Control": "public, max-age=3600"})
+        return FileResponse(
+            DIST / "index.html",
+            headers={"Cache-Control": "no-store, must-revalidate"},
+        )
 else:
     log.warning("frontend/dist 가 없습니다. `npm run build` 후 다시 켜면 화면이 함께 서빙됩니다.")
