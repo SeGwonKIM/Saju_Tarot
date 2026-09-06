@@ -36,11 +36,19 @@ def cards_of(payload: dict) -> list[tuple[str, bool]]:
 # ── 재현성 ────────────────────────────────────────────────────
 
 
-def test_same_person_same_month_gets_same_cards():
-    """새로고침할 때마다 카드가 달라지면 안 된다."""
-    first = client.post("/api/v1/readings", json=BODY).json()
-    second = client.post("/api/v1/readings", json=BODY).json()
-    assert first["tarot"] == second["tarot"]
+def test_cards_are_drawn_fresh_every_time():
+    """**뽑을 때마다 새 카드다** (v3.3 — 사용자 결정).
+
+    v2.18 에서는 반대로 고정했었다("새로고침마다 달라진다"는 이유).
+    다시 뒤집은 것은 타로를 뽑는 행위 자체가 매번 새로워야 한다는 판단이다.
+    대신 원국에서 나오는 **사주 풀이는 고정**한다(test_report.py 참조) —
+    카드가 바뀌어도 타고난 것이 달라지지는 않는다.
+    """
+    seen = {
+        tuple(c["card"] for c in client.post("/api/v1/readings", json=BODY).json()["tarot"])
+        for _ in range(5)
+    }
+    assert len(seen) > 1, "다섯 번을 뽑았는데 전부 같으면 고정된 것이다"
 
 
 def test_same_person_gets_a_different_address_each_time():
@@ -80,11 +88,16 @@ def test_birth_time_changes_cards():
     assert a != b
 
 
-def test_topics_do_not_change_cards():
-    """타로는 주제와 무관하게 3장 고정이다 (PRD §8.6)."""
-    a = cards_of({**BODY, "topics": ["재회운"]})
-    b = cards_of({**BODY, "topics": ["재회운", "재물", "대인관계"]})
-    assert a == b
+def test_cards_are_always_three():
+    """주제를 몇 개 고르든 **3장 스프레드**다 (PRD §8.6).
+
+    카드 내용은 매번 달라지지만(v3.3) 장수와 자리는 고정이다 —
+    주제마다 카드를 따로 배정하면 해석이 서로 어긋난다.
+    """
+    for topics in (["재회운"], ["재회운", "재물", "대인관계"]):
+        r = client.post("/api/v1/readings", json={**BODY, "topics": topics}).json()
+        assert len(r["tarot"]) == 3
+        assert [c["position"] for c in r["tarot"]] == ["현재", "조언", "방향"]
 
 
 def test_month_change_changes_cards():

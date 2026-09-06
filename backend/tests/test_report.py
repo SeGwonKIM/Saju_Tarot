@@ -176,24 +176,24 @@ def test_report_is_not_regenerated(no_network_generator):
     assert again["report"] == first["report"]
 
 
-def test_same_person_same_name_reuses_the_report(no_network_generator):
-    """같은 사주·같은 달·같은 이름이면 **같은 글**이 나온다 (v3.2).
+def test_same_person_reuses_only_the_saju_reading(no_network_generator):
+    """**사주 풀이만** 고정된다 (v3.3).
 
-    LLM 은 같은 사실을 매번 다른 말로 쓴다. 그냥 두면 같은 사람이 다시 봐도
-    다른 리포트가 나와 신뢰가 서지 않는다. 타로가 같은 카드를 내는 것과
-    같은 이유로 글도 고정한다. 덤으로 두 번째부터는 LLM 을 부르지 않는다.
+    원국은 평생 값이라 같은 사람이면 언제 봐도 같은 말이 나와야 한다.
+    반대로 이번 달 흐름·주제별 조언은 그때 뽑은 카드를 근거로 쓰므로
+    다시 만들어야 한다 — 카드는 매번 새로 뽑히는데(v3.3) 조언을 재사용하면
+    **화면에 없는 카드를 두고 쓴 조언**이 된다. 조언은 타로 비중이 크다
+    (상대방속마음 1:9, 재회운 3:7).
     """
-    body = {**VALID, "name": "재사용시험"}
+    body = {**VALID, "name": "풀이고정시험"}
     a = client.post("/api/v1/readings", json=body).json()["id"]
     first = client.post(f"/api/v1/readings/{a}/report").json()["report"]
-    calls = len(no_network_generator.calls)
 
     b = client.post("/api/v1/readings", json=body).json()["id"]
     second = client.post(f"/api/v1/readings/{b}/report").json()["report"]
 
     assert a != b, "주소는 매번 새로 만든다"
-    assert second == first, "같은 이름이면 같은 글이어야 한다"
-    assert len(no_network_generator.calls) == calls, "두 번째는 LLM 을 부르지 않는다"
+    assert second["saju_reading"] == first["saju_reading"], "사주 풀이는 고정이어야 한다"
 
 
 def test_same_birth_different_name_gets_a_new_report(no_network_generator):

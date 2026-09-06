@@ -8,6 +8,7 @@
 """
 
 import secrets
+from dataclasses import replace
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
@@ -271,9 +272,13 @@ def create_reading(
     now_corrected = correct(now, longitude)
     period = current_period(now, now_corrected.jieqi_reference)
 
-    # 같은 사람 + 같은 달이면 항상 같은 카드 (PRD §8.6)
+    # 타로는 **뽑을 때마다 새로 뽑는다** (v3.3 — 사용자 결정).
+    #  v2.18 에서는 반대로 고정했었다("새로고침마다 카드가 달라진다"는 이유).
+    #  다시 뒤집은 것은 타로를 뽑는 행위 자체가 매번 새로워야 한다는 판단이다.
+    #  대신 **사주 풀이는 고정**한다(아래 chart_key) — 원국은 평생 값이니
+    #  카드가 바뀌어도 달라지면 안 된다.
     birth_key = f"{solar.isoformat()}|{body.birth_time or 'unknown'}|{body.birth_place}"
-    seed = period_seed(birth_key, f"{period.year.ko}|{period.month.ko}")
+    seed = secrets.randbits(62)
 
     # 리포트 주소는 **난수로 따로 만든다** (v3.1 보안 수정).
     #
@@ -340,9 +345,9 @@ def create_reading(
     #  이름을 넣는 이유 — 생년월일이 같아도 **이름이 다르면 다른 글**이 나오고,
     #  이름까지 같으면 같은 글이 나오게 하기 위해서다.
     #  암호화 키로 HMAC 을 걸어, DB 만 새어도 원래 값을 되돌릴 수 없다.
-    chart_key = storage.fingerprint(
-        f"{birth_key}|{period.year.ko}|{period.month.ko}|{body.name.strip()}"
-    )
+    #  달을 넣지 않는다 — 사주 풀이는 원국 이야기라 평생 바뀌지 않는다.
+    #  달을 넣으면 다음 달에 다시 온 손님이 다른 풀이를 받게 된다.
+    chart_key = storage.fingerprint(f"{birth_key}|{body.name.strip()}")
 
     storage.save(
         response.id,
@@ -425,16 +430,19 @@ def create_report(
     #  같은 사람이 다시 보면 같은 글이 나와야 한다 — 타로가 같은 카드를 내는 것과
     #  같은 이유다. LLM 은 같은 사실을 매번 다른 말로 써서, 그냥 두면 새로고침
     #  한 번에 다른 리포트가 된다. 덤으로 두 번째부터는 요금이 들지 않는다.
-    key = _chart_key_of(reading_id, storage)
-    if key:
-        twin = storage.find_report(key, exclude_id=reading_id)
-        if twin:
-            payload["report"] = twin["report"]
-            payload["report_model"] = twin.get("report_model")
-            storage.update_payload(reading_id, payload)
-            return ReadingResponse(id=reading_id, **payload)
-
     report = generator.generate(_facts_from_payload(payload), stored.name, list(topics))
+
+    # **사주 풀이만** 앞서 쓴 것을 그대로 쓴다 (v3.3).
+    #  원국은 평생 값이라, 같은 사람이면 언제 봐도 같은 말이 나와야 한다.
+    #  반대로 이번 달 흐름·주제별 조언은 새로 뽑은 카드를 근거로 쓰므로
+    #  재사용하면 안 된다 — 화면에 없는 카드를 두고 쓴 조언이 되어 버린다
+    #  (조언은 타로 비중이 크다: 상대방속마음 1:9, 재회운 3:7).
+    if report is not None:
+        key = _chart_key_of(reading_id, storage)
+        if key:
+            twin = storage.find_report(key, exclude_id=reading_id)
+            if twin and twin["report"].get("saju_reading"):
+                report = replace(report, saju_reading=twin["report"]["saju_reading"])
 
     # 실패해도 계산 결과는 그대로 유효하다 (PRD §11.3 부분 성공)
     if report is not None:
