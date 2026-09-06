@@ -41,8 +41,31 @@ def test_same_person_same_month_gets_same_cards():
     first = client.post("/api/v1/readings", json=BODY).json()
     second = client.post("/api/v1/readings", json=BODY).json()
     assert first["tarot"] == second["tarot"]
-    assert first["tarot_seed"] == second["tarot_seed"]
-    assert first["id"] == second["id"]
+
+
+def test_same_person_gets_a_different_address_each_time():
+    """카드는 같아도 **주소는 매번 새로 만든다** (v3.1 보안 수정).
+
+    예전에는 주소가 카드 seed(생년월일의 해시)와 같았다. 그래서
+      · 생년월일시·출생지가 같은 두 사람이 같은 주소를 받아,
+        뒤 사람이 앞 사람 기록을 덮어썼다 (INSERT OR REPLACE)
+      · 생년월일을 아는 사람이 주소를 계산해 남의 리포트를 열 수 있었다
+    카드의 재현성과 주소의 비밀성은 별개다. 이 테스트가 그 분리를 지킨다.
+    """
+    a = client.post("/api/v1/readings", json=BODY).json()
+    b = client.post("/api/v1/readings", json=BODY).json()
+    assert a["id"] != b["id"], "같은 입력이 같은 주소를 내면 남의 기록을 덮어쓴다"
+    assert len(a["id"]) >= 24, "주소가 짧으면 찍어서 맞힐 수 있다"
+
+
+def test_response_does_not_leak_the_tarot_seed():
+    """seed 는 생년월일의 해시다. 밖으로 내면 역산된다 (v3.1 보안 수정).
+
+    공유 링크가 생년월일시를 지워도 이 값 하나로 되돌릴 수 있었다 —
+    16년치를 10분 단위로 훑어 1.6초 만에 복원되는 것을 실측했다.
+    """
+    d = client.post("/api/v1/readings", json=BODY).json()
+    assert "tarot_seed" not in d
 
 
 def test_different_person_gets_different_cards():

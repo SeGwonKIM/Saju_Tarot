@@ -30,11 +30,21 @@ WINDOW_SECONDS = 3600
 COSTLY_METHODS = {"POST"}
 COSTLY_SUFFIX = "/report"
 
+# 계산 창구(POST /readings)는 돈은 안 들지만 **쓰기**다. 한 번마다 DB 에 행이
+# 쌓이므로 무제한으로 두면 디스크를 채워 서비스를 멈출 수 있다.
+# v3.0 에서 레이트리밋을 /report 로 옮기면서 이쪽이 통째로 풀렸다(실측 20/20 통과).
+# LLM 요금이 걸린 쪽보다는 느슨하게, 그러나 도배는 막히게 둔다.
+WRITE_PREFIX = "/api/v1/readings"
+WRITE_PER_IP_LIMIT = 30
+
 PER_IP_LIMIT = 10
 GLOBAL_LIMIT = 100
 
 _per_ip: dict[str, deque[float]] = defaultdict(deque)
 _global: deque[float] = deque()
+# 쓰기 바구니는 요금 바구니와 **따로** 둔다.
+# 같이 세면 계산 몇 번에 풀이 한도가 닳아 버린다.
+_writes: dict[str, deque[float]] = defaultdict(deque)
 
 
 def client_ip(request: Request) -> str:
@@ -70,7 +80,28 @@ def _prune(bucket: deque[float], now: float) -> None:
 
 
 def is_costly(request: Request) -> bool:
+    """LLM 요금이 드는 요청 — 풀이 생성 하나뿐이다."""
     return request.method in COSTLY_METHODS and request.url.path.endswith(COSTLY_SUFFIX)
+
+
+def is_write(request: Request) -> bool:
+    """돈은 안 들지만 DB 에 행을 남기는 요청 (계산·공유 링크 발급)."""
+    return (
+        request.method in COSTLY_METHODS
+        and request.url.path.startswith(WRITE_PREFIX)
+        and not is_costly(request)
+    )
+
+
+def check_write(request: Request) -> tuple[bool, int]:
+    """쓰기 상한. 요금 한도와 따로 센다."""
+    now = time.monotonic()
+    bucket = _writes[client_ip(request)]
+    _prune(bucket, now)
+    if len(bucket) >= WRITE_PER_IP_LIMIT:
+        return False, int(WINDOW_SECONDS - (now - bucket[0])) + 1
+    bucket.append(now)
+    return True, 0
 
 
 def check(request: Request) -> tuple[bool, int]:
@@ -110,3 +141,4 @@ def reset() -> None:
     """테스트용."""
     _per_ip.clear()
     _global.clear()
+    _writes.clear()

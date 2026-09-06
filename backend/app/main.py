@@ -111,6 +111,12 @@ async def security_headers(request: Request, call_next):
 @app.middleware("http")
 async def limit_costly_requests(request: Request, call_next):
     """비용이 드는 요청만 죈다 (PRD §12.5). 공개 서버에서는 필수다."""
+    if rate_limit.is_write(request):
+        allowed, retry_after = rate_limit.check_write(request)
+        if not allowed:
+            log.warning("쓰기 한도 초과 %s", mask_path(request.url.path))
+            return rate_limit.too_many(retry_after)
+
     if rate_limit.is_costly(request):
         allowed, retry_after = rate_limit.check(request)
         if not allowed:

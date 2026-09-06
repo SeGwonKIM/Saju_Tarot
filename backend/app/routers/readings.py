@@ -7,6 +7,7 @@
 입력 검증은 프론트와 **같은 규칙을 여기서 다시** 한다 (PRD §12.2 프론트는 못 믿는다).
 """
 
+import secrets
 from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
@@ -197,7 +198,11 @@ class ReadingResponse(BaseModel):
     """생성 실패·키 없음이면 null — 계산 결과만 보여준다 (PRD §11.3 부분 성공)"""
     report_model: str | None = None
     engine_version: str
-    tarot_seed: int
+    # tarot_seed 는 응답에 넣지 않는다 (v3.1 보안 수정).
+    #  생년월일·시간·출생지의 해시라, 공유 링크가 생년월일시를 지워도
+    #  이 값 하나로 되돌릴 수 있었다. 실측 — 16년치를 10분 단위로 훑어
+    #  **1.6초 만에** 정확한 생년월일시를 복원했다(§12.14 무력화).
+    #  카드 재현에 필요한 값은 서버가 계산해서 쓴다. 밖으로 낼 이유가 없다.
     draft_before_tone_learning: bool = True
 
 
@@ -269,6 +274,16 @@ def create_reading(
     # 같은 사람 + 같은 달이면 항상 같은 카드 (PRD §8.6)
     birth_key = f"{solar.isoformat()}|{body.birth_time or 'unknown'}|{body.birth_place}"
     seed = period_seed(birth_key, f"{period.year.ko}|{period.month.ko}")
+
+    # 리포트 주소는 **난수로 따로 만든다** (v3.1 보안 수정).
+    #
+    #  예전에는 위 seed 를 그대로 주소로 썼다. 카드가 매번 같아야 해서 seed 가
+    #  생년월일의 해시인데, 그걸 주소로 삼는 바람에 주소에 비밀이 없어졌다.
+    #    · 생년월일시·출생지가 같으면 주소가 같아져 **뒤 사람이 앞 사람 기록을
+    #      덮어썼다**(INSERT OR REPLACE). 실제로 재현했다.
+    #    · 생년월일을 아는 사람은 주소를 계산해 남의 리포트를 열 수 있었다.
+    #  카드의 재현성과 주소의 비밀성은 별개다. seed 는 카드에만 쓴다.
+    reading_id = f"r-{secrets.token_urlsafe(24)}"
     cards = draw(seed)
     tarot_out = [TarotOut(**c.__dict__) for c in cards]
 
@@ -277,7 +292,7 @@ def create_reading(
     #  빈 화면을 본다. 계산 결과를 먼저 돌려주고, 문장은 POST /{id}/report 로
     #  이어서 받는다. facts 는 그때 저장된 값으로 다시 만든다.
     response = ReadingResponse(
-        id=f"r-{seed:016x}",
+        id=reading_id,
         input_echo=InputEcho(
             solar_datetime=corrected.clock.isoformat(timespec="minutes"),
             true_solar_correction_min=corrected.true_solar_correction_min,
@@ -313,7 +328,6 @@ def create_reading(
         report=None,
         report_model=None,
         engine_version=chart.engine_version,
-        tarot_seed=seed,
         draft_before_tone_learning=not tone_is_active(),
     )
 
