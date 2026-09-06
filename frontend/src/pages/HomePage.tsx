@@ -100,7 +100,7 @@ export default function HomePage() {
           <div className="rise mt-9 flex flex-wrap items-center gap-3">
             <a
               href="#form"
-              className="rounded-xl bg-gold-500 px-7 py-3.5 font-semibold text-ink-950 shadow-lg shadow-gold-500/20 transition-transform hover:-translate-y-0.5 hover:bg-gold-400"
+              className="rounded-2xl bg-gold-500 px-10 py-5 text-xl font-bold tracking-tight text-ink-950 shadow-xl shadow-gold-500/30 transition-transform hover:-translate-y-0.5 hover:bg-gold-400 sm:px-12 sm:text-2xl"
             >
               시작하기
             </a>
