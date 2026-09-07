@@ -68,8 +68,12 @@ export default function TarotFan({ picks, onChange, error }: Props) {
         <p className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
           이제 타로카드 3장을 뽑습니다
         </p>
+        {/* 두 문장을 줄로 갈라 놓는다 — 한 덩이로 흐르면 어디서 끊길지 폭에 따라 달라진다 */}
         <p className="mt-2 text-sm leading-relaxed text-ink-600 dark:text-ink-300">
-          카드는 보이지 않게 섞여 있습니다. 왼쪽부터 번호로 세 장을 고르세요.
+          카드는 보이지 않게 섞여 있습니다. 왼쪽 끝이 1번, 오른쪽 끝이 {FAN_SIZE}번입니다.
+        </p>
+        <p className="mt-1 text-sm leading-relaxed text-ink-600 dark:text-ink-300">
+          번호로 세 장을 고르세요.
         </p>
       </div>
 
