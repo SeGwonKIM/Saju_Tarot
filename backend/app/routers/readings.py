@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..calendar_service import CalendarError, lunar_to_solar, solar_to_lunar
 from ..config import get_settings
@@ -29,7 +29,7 @@ from ..report_service import (
 )
 from ..saju_service import ELEMENTS, MidnightRule, build_chart, current_period
 from ..tone_samples import is_active as tone_is_active
-from ..tarot_service import draw, period_seed
+from ..tarot_service import FAN_SIZE, SPREAD, draw, draw_picks, period_seed
 
 router = APIRouter(prefix="/readings", tags=["readings"])
 
@@ -90,6 +90,11 @@ class ReadingRequest(BaseModel):
     birth_place: str = "서울"
     topics: list[Literal[TOPICS]] = Field(min_length=1, max_length=5)  # type: ignore[valid-type]
     tarot_mode: Literal["auto", "manual"] = "auto"
+    # 손님이 부채꼴 78장에서 고른 자리 번호 3개 (PRD §8.6.1).
+    # manual 이면 필수, auto 면 넣지 않는다.
+    # 화면의 기본 흐름은 manual 이지만 **API 기본값은 auto 로 둔다** —
+    # 기본값을 바꾸면 tarot_mode 를 안 보내던 기존 호출이 전부 깨진다.
+    tarot_picks: list[int] | None = None
 
     @field_validator("name")
     @classmethod
@@ -113,6 +118,36 @@ class ReadingRequest(BaseModel):
         if len(set(v)) != len(v):
             raise ValueError("주제가 중복되었습니다.")
         return v
+
+    @field_validator("tarot_picks")
+    @classmethod
+    def valid_picks(cls, v: list[int] | None) -> list[int] | None:
+        """부채꼴에서 고른 번호 검사 (PRD §8.6.1).
+
+        같은 자리를 두 번 고르면 카드가 두 장이 되어 3장 스프레드가 성립하지 않는다.
+        """
+        if v is None:
+            return v
+        if len(v) != len(SPREAD):
+            raise ValueError(f"카드는 {len(SPREAD)}장을 고릅니다.")
+        if len(set(v)) != len(v):
+            raise ValueError("같은 번호를 두 번 고를 수 없습니다.")
+        if any(n < 1 or n > FAN_SIZE for n in v):
+            raise ValueError(f"번호는 1부터 {FAN_SIZE}까지입니다.")
+        return v
+
+    @model_validator(mode="after")
+    def picks_match_mode(self) -> "ReadingRequest":
+        """manual 이면 번호가 있어야 하고, auto 면 없어야 한다.
+
+        auto 인데 번호가 오면 무시하지 않고 막는다 — 손님은 골랐다고 생각하는데
+        서버가 딴 카드를 뽑아 주는 것이 가장 나쁜 결과다.
+        """
+        if self.tarot_mode == "manual" and self.tarot_picks is None:
+            raise ValueError("직접 뽑기(manual)는 번호 3개를 함께 보내야 합니다.")
+        if self.tarot_mode == "auto" and self.tarot_picks is not None:
+            raise ValueError("자동 뽑기(auto)에는 번호를 보내지 않습니다.")
+        return self
 
 
 class PillarOut(BaseModel):
@@ -161,6 +196,8 @@ class TarotOut(BaseModel):
     card_ko: str
     reversed: bool
     keywords: list[str]
+    # 손님이 고른 자리 번호 (PRD §8.6.1). auto 로 뽑았거나 v3.6 이전 저장분이면 None.
+    pick: int | None = None
 
 
 class PillarsOut(BaseModel):
@@ -303,7 +340,9 @@ def create_reading(
     #    · 생년월일을 아는 사람은 주소를 계산해 남의 리포트를 열 수 있었다.
     #  카드의 재현성과 주소의 비밀성은 별개다. seed 는 카드에만 쓴다.
     reading_id = f"r-{secrets.token_urlsafe(24)}"
-    cards = draw(seed)
+    #  manual 이면 손님이 고른 자리에서, auto 면 서버가 알아서 뽑는다 (PRD §8.6.1).
+    #  seed 는 둘 다 요청과 무관한 난수다 — 생년월일에서 만들면 역산된다(v3.1 ⑪).
+    cards = draw_picks(body.tarot_picks, seed) if body.tarot_picks else draw(seed)
     tarot_out = [TarotOut(**c.__dict__) for c in cards]
 
     # 풀이 문장은 여기서 만들지 않는다 (v3.0).

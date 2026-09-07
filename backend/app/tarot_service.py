@@ -34,6 +34,10 @@ class DrawnCard:
     card_ko: str
     reversed: bool
     keywords: list[str]
+    # 손님이 부채꼴에서 고른 자리 번호 (PRD §8.6.1). auto 로 뽑았으면 None.
+    # 화면이 "① 지금 놓인 자리 · 7번" 으로 보여주는 값이다 — 번호를 지우면
+    # 손님이 자기가 뽑았다는 것을 확인할 수 없다.
+    pick: int | None = None
 
 
 def _major(n: int, en: str, ko: str, *kw: str) -> Card:
@@ -121,6 +125,40 @@ def draw(seed: int) -> list[DrawnCard]:
             keywords=list(card.keywords),
         )
         for (key, label), card in zip(SPREAD, picked)
+    ]
+
+
+FAN_SIZE = len(DECK)          # 화면에 부채꼴로 깔리는 자리 수 = 덱 전체 (PRD §8.6.1)
+
+
+def draw_picks(picks: list[int], seed: int) -> list[DrawnCard]:
+    """손님이 고른 자리 번호로 3장을 뽑는다 (PRD §8.6.1).
+
+    **번호는 자리이지 카드가 아니다.** 매 요청마다 78장을 새로 섞어 깔기 때문에,
+    7번을 골라도 올 때마다 다른 카드가 나온다. 번호에 카드를 고정하면 손님이
+    "3번이 연인 카드"라고 외워 결과를 고를 수 있게 되고, 그러면 뽑는 행위가
+    선택이 되어 버린다.
+
+    **seed 를 생년월일에서 만들면 안 된다** (v3.1 ⑪ 재발 방지). 배치를 정하는
+    값이 생년월일시에서 나오면 그 값 하나로 생년월일시를 되돌릴 수 있다.
+    호출부가 요청과 무관한 난수를 넘긴다.
+
+    고른 순서가 자리를 정한다 — 첫 번째가 ① 지금 놓인 자리다.
+    """
+    rng = random.Random(seed)
+    fan = list(DECK)
+    rng.shuffle(fan)                       # 78장을 부채꼴로 깔아 놓은 상태
+    return [
+        DrawnCard(
+            position=key,
+            position_ko=label,
+            card=fan[n - 1].name,          # 번호는 1부터, 목록은 0부터
+            card_ko=fan[n - 1].name_ko,
+            reversed=rng.random() < 0.5,
+            keywords=list(fan[n - 1].keywords),
+            pick=n,
+        )
+        for (key, label), n in zip(SPREAD, picks)
     ]
 
 
