@@ -402,7 +402,7 @@ export default function BirthForm({
                 : 'bg-gradient-to-b from-ink-700/70 to-ink-800/70 text-paper-100 hover:from-ink-700 hover:to-ink-800 dark:from-gold-600/60 dark:to-gold-600/60 dark:text-ink-950',
             ].join(' ')}
           >
-            {submitting ? '사주팔자를 세우는 중…' : '리포트 만들기'}
+            {submitting ? '사주와 타로를 해석하는 중입니다' : '선택한 세 장 뒤집기'}
           </button>
 
           {/* 무엇이 남았는지 알려준다 (PRD §6.1) */}

@@ -7,7 +7,8 @@
  *
  * 역방향은 이미지만 180도 돌린다. 설명 글자는 돌리지 않는다.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import CardBack from '../CardBack'
 import type { Reading } from '../../schemas/reading'
 
 type Card = Reading['tarot'][number]
@@ -20,17 +21,43 @@ function slug(name: string): string {
     .replace(/^-|-$/g, '')
 }
 
-export default function TarotCard({ card }: { card: Card }) {
+export default function TarotCard({ card, index = 0 }: { card: Card; index?: number }) {
   const [imageFailed, setImageFailed] = useState(false)
+  /**
+   * 엎어진 채로 나타나서 뒤집힌다 (PRD §8.6.1).
+   *
+   * 손님이 부채꼴에서 고른 것은 **뒷면**이었다. 결과 화면이 앞면부터 보여주면
+   * 뽑는 행위와 결과가 끊긴다. 고른 순서대로 한 장씩 뒤집어 이어 준다.
+   */
+  const [flipped, setFlipped] = useState(false)
+  useEffect(() => {
+    // 움직임을 줄여 달라고 설정한 사람에게는 곧바로 앞면을 보여준다
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setFlipped(true)
+      return
+    }
+    const t = setTimeout(() => setFlipped(true), 200 + index * 260)
+    return () => clearTimeout(t)
+  }, [index])
 
   return (
     <figure className="flex flex-col items-center gap-3">
-      <div
-        className={[
-          'relative aspect-[2/3] w-full overflow-hidden rounded-xl border shadow-md',
-          card.reversed ? 'border-plum-400/50' : 'border-gold-500/40',
-        ].join(' ')}
-      >
+      <div className="relative aspect-[2/3] w-full [perspective:1000px]">
+        <div
+          className={
+            'relative h-full w-full transition-transform duration-700 [transform-style:preserve-3d] ' +
+            (flipped ? '[transform:rotateY(180deg)]' : '')
+          }
+        >
+          <div className="absolute inset-0 [backface-visibility:hidden]">
+            <CardBack pick={card.pick ?? undefined} />
+          </div>
+          <div
+            className={[
+              'absolute inset-0 overflow-hidden rounded-xl border shadow-md [backface-visibility:hidden] [transform:rotateY(180deg)]',
+              card.reversed ? 'border-plum-400/50' : 'border-gold-500/40',
+            ].join(' ')}
+          >
         {imageFailed ? (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-b from-ink-800 to-ink-950 text-gold-300">
             <div className="starfield absolute inset-0 opacity-60" aria-hidden="true" />
@@ -50,15 +77,18 @@ export default function TarotCard({ card }: { card: Card }) {
             ].join(' ')}
           />
         )}
-        {card.reversed && (
-          <span className="absolute right-1.5 top-1.5 rounded-md bg-plum-500/90 px-1.5 py-0.5 text-[10px] font-medium text-white">
-            역
-          </span>
-        )}
+            {card.reversed && (
+              <span className="absolute right-1.5 top-1.5 rounded-md bg-plum-500/90 px-1.5 py-0.5 text-[10px] font-medium text-white">
+                역
+              </span>
+            )}
+          </div>
+        </div>
       </div>
 
       <figcaption className="text-center">
         <div className="text-xs font-medium text-gold-600 dark:text-gold-400">
+          {card.pick != null && <span className="font-bold">{card.pick}번 · </span>}
           {card.position_ko}
         </div>
         <div className="mt-0.5 font-display text-sm font-bold text-ink-900 dark:text-paper-100">

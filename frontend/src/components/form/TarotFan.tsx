@@ -10,6 +10,7 @@
  */
 import { useState } from 'react'
 
+import { lattice, Rosette } from '../CardBack'
 import { FAN_SIZE, SPREAD } from '../../schemas/reading'
 
 /** 카드 사이 각도. 넓을수록 부채가 벌어진다 */
@@ -18,44 +19,6 @@ const STEP_DEG = 1.24
 const PIVOT_PX = 228
 const CARD_H = 152
 const CARD_W = 18
-
-/**
- * 카드 뒷면 무늬 — **직접 그린다.**
- *
- * 남의 카드 그림을 가져오지 않는다. PRD §18 Q5 가 "퍼블릭 도메인 스캔본만"으로
- * 묶여 있고, 뒷면은 앞면 그림과 달리 격자 무늬 하나로 충분하다.
- * 45도로 교차하는 금색 실선 두 겹 = 옛 카드 뒷면의 마름모 격자다.
- * Q5 가 정해지면 그때 앞면과 함께 다시 본다.
- */
-const LATTICE = (gap: number, alpha: number) => ({
-  backgroundImage:
-    `repeating-linear-gradient(45deg, rgba(223,187,86,${alpha}) 0 1px, transparent 1px ${gap}px),` +
-    `repeating-linear-gradient(-45deg, rgba(223,187,86,${alpha}) 0 1px, transparent 1px ${gap}px)`,
-})
-
-/** 뒷면 가운데 문양 — 여덟 갈래 별. 이것도 직접 그린 것이다 */
-function Rosette({ className = '' }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 40 40" aria-hidden="true" className={className}>
-      <circle cx="20" cy="20" r="13" fill="none" stroke="currentColor" strokeWidth="0.8" />
-      <circle cx="20" cy="20" r="4.5" fill="none" stroke="currentColor" strokeWidth="0.8" />
-      {Array.from({ length: 8 }, (_, i) => {
-        const a = (i * Math.PI) / 4
-        return (
-          <line
-            key={i}
-            x1={20 + Math.cos(a) * 5}
-            y1={20 + Math.sin(a) * 5}
-            x2={20 + Math.cos(a) * 12.5}
-            y2={20 + Math.sin(a) * 12.5}
-            stroke="currentColor"
-            strokeWidth="0.8"
-          />
-        )
-      })}
-    </svg>
-  )
-}
 
 type Props = {
   /** 고른 번호. 아직 안 고른 자리는 null */
@@ -141,7 +104,7 @@ export default function TarotFan({ picks, onChange, error }: Props) {
                   marginLeft: -CARD_W / 2,
                   transformOrigin: `50% -${PIVOT_PX}px`,
                   transform: `rotate(${(deg * STEP_DEG - part).toFixed(2)}deg)${on ? ' translateY(26px)' : ''}`,
-                  ...LATTICE(6, on ? 0.3 : 0.14),
+                  ...lattice(6, on ? 0.3 : 0.14),
                 }}
               >
                 {on ? n : ''}
@@ -199,7 +162,7 @@ export default function TarotFan({ picks, onChange, error }: Props) {
                       ? 'border-2 border-dashed border-gold-500/60 bg-paper-100 dark:bg-ink-900'
                       : 'border border-dashed border-paper-300 bg-paper-100 dark:border-ink-700 dark:bg-ink-900')
                 }
-                style={{ aspectRatio: '1 / 1.72', ...(filled ? LATTICE(9, 0.22) : {}) }}
+                style={{ aspectRatio: '1 / 1.72', ...(filled ? lattice(9, 0.22) : {}) }}
               >
                 {filled && (
                   <>

@@ -337,7 +337,7 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
             뽑힌 카드
           </h2>
           <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-300">
-            세 장을 다섯 주제의 공통 근거로 읽습니다 · 이 달 안에는 카드가 바뀌지 않습니다
+            세 장을 다섯 주제의 공통 근거로 읽습니다 · 직접 고르신 번호로 뽑았습니다
           </p>
           {/* 퍼블릭 도메인 이미지 출처 표기 (PRD §18.1 Q5) */}
           <p className="mt-1 text-[11px] text-ink-300 dark:text-ink-400">
@@ -345,8 +345,8 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
           </p>
           {/* 3장 고정 스프레드 (PRD §8.6) */}
           <div className="mt-5 grid grid-cols-3 gap-4">
-            {tarot.map((c) => (
-              <TarotCard key={c.position} card={c} />
+            {tarot.map((c, i) => (
+              <TarotCard key={c.position} card={c} index={i} />
             ))}
           </div>
         </Card>

@@ -1,4 +1,4 @@
-# 청단사주타로 — Render 배포 설정 (Blueprint)
+# 세권사주타로 — Render 배포 설정 (Blueprint)
 #
 # 쓰는 법: Render 대시보드 → New → Blueprint → 이 저장소 선택.
 #          sync: false 로 표시된 값은 Render 화면에서 직접 넣는다(저장소에 안 남는다).
