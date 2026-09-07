@@ -74,8 +74,7 @@ export default function TarotFan({ picks, onChange, error }: Props) {
         */}
         <div className="mt-2 space-y-1 text-sm leading-relaxed text-ink-600 dark:text-ink-300">
           <p>카드는 보이지 않게 섞여 있습니다.</p>
-          <p>왼쪽 끝이 1번, 오른쪽 끝이 {FAN_SIZE}번입니다.</p>
-          <p>번호로 세 장을 고르세요.</p>
+          <p>왼쪽 끝이 1번, 오른쪽 끝이 {FAN_SIZE}번입니다. 번호로 세 장을 고르세요.</p>
         </div>
       </div>
 
