@@ -66,7 +66,7 @@ export default function TarotFan({ picks, onChange, error }: Props) {
       {/* ── 경계 — 여기서 타로 구역이 시작된다 (PRD §8.6.1) ────── */}
       <div className="border-t border-paper-300 pt-7 dark:border-ink-700">
         <p className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
-          이제 타로카드 3장을 뽑습니다
+          카드 3장을 뽑습니다
         </p>
         {/*
           문장마다 줄을 바꾼다 — 한 덩이로 흐르면 화면 폭에 따라 끊기는 자리가
