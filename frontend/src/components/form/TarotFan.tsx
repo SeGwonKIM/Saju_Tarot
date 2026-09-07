@@ -133,9 +133,6 @@ export default function TarotFan({ picks, onChange, error }: Props) {
             </div>
           ))}
         </div>
-        <p className="relative mt-1 text-center text-xs text-paper-200">
-          카드를 눌러 크게 볼 수 있습니다
-        </p>
       </div>
 
       {/* ── 뽑힌 세 자리 — 카드 비율 그대로 (PRD §8.6.1) ─────────── */}
