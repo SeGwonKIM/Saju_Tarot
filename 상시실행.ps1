@@ -56,7 +56,7 @@ if (-not (Test-Path $dist)) {
 # APP_ENV=production 이어야 /docs 와 /openapi.json 이 닫힌다.
 $env:APP_ENV = "production"
 $서버 = Start-Process $파이썬 `
-    -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "$포트", `
+    -ArgumentList "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "$포트", "--no-server-header", `
                   "--app-dir", (Join-Path $루트 "backend") `
     -PassThru -NoNewWindow
 

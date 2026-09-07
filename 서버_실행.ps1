@@ -79,4 +79,5 @@ Write-Host "종료하려면 Ctrl+C" -ForegroundColor DarkGray
 Write-Host "────────────────────────────────────" -ForegroundColor DarkGray
 Write-Host ""
 
-& $파이썬 -m uvicorn app.main:app --host 0.0.0.0 --port $포트 --app-dir (Join-Path $루트 "backend")
+# --no-server-header 로 uvicorn 이 자기 이름을 알리지 않게 한다 (PRD 12.4)
+& $파이썬 -m uvicorn app.main:app --host 0.0.0.0 --port $포트 --no-server-header --app-dir (Join-Path $루트 "backend")

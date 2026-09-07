@@ -13,7 +13,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, StrictInt, field_validator, model_validator
 
 from ..calendar_service import CalendarError, lunar_to_solar, solar_to_lunar
 from ..config import get_settings
@@ -94,7 +94,11 @@ class ReadingRequest(BaseModel):
     # manual 이면 필수, auto 면 넣지 않는다.
     # 화면의 기본 흐름은 manual 이지만 **API 기본값은 auto 로 둔다** —
     # 기본값을 바꾸면 tarot_mode 를 안 보내던 기존 호출이 전부 깨진다.
-    tarot_picks: list[int] | None = None
+    # StrictInt — 문자열 "7" 을 7 로 바꿔 받지 않는다.
+    # pydantic 기본값은 강제 변환이라 ["7","42","61"] 도 통과했다(점검에서 발견).
+    # 값 검증은 그 뒤에도 정상이라 위험하지는 않았지만, 계약이 느슨하면
+    # 나중에 프론트와 서버가 다른 것을 주고받아도 조용히 넘어간다.
+    tarot_picks: list[StrictInt] | None = None
 
     @field_validator("name")
     @classmethod

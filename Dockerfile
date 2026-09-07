@@ -43,4 +43,6 @@ ENV APP_ENV=production PORT=8000
 EXPOSE 8000
 
 # 플랫폼이 넘겨주는 $PORT 를 그대로 쓴다 (Render 는 10000 을 준다).
-CMD ["sh", "-c", "python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port ${PORT}"]
+# --no-server-header: uvicorn 이 자기 이름을 헤더에 넣는다. 앱에서 Server 를 덮어써도
+# 둘이 함께 나가 서버 종류가 그대로 드러난다 (점검에서 발견). 여기서 끊어야 한다.
+CMD ["sh", "-c", "python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port ${PORT} --no-server-header"]

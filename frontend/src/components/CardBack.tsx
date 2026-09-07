@@ -53,17 +53,17 @@ export default function CardBack({
   return (
     <div
       className={
-        'relative h-full w-full overflow-hidden rounded-xl border border-gold-400 bg-ink-900 ' +
+        'relative h-full w-full overflow-hidden rounded-xl border border-gold-400 bg-ink-600 ' +
         className
       }
-      style={lattice(9, 0.22)}
+      style={lattice(9, 0.4)}
     >
       {/* 이중 테두리 — 옛 카드 뒷면의 안쪽 선 */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-1.5 rounded border border-gold-500/35"
+        className="pointer-events-none absolute inset-1.5 rounded border border-gold-400/60"
       />
-      <Rosette className="pointer-events-none absolute inset-x-0 top-[22%] mx-auto size-2/5 text-gold-400/50" />
+      <Rosette className="pointer-events-none absolute inset-x-0 top-[22%] mx-auto size-2/5 text-gold-300/80" />
       {pick != null && (
         // 카드 폭을 가로지르는 띠를 두면 카드가 두 동으로 잘려 보인다
         <span className="absolute bottom-3 left-1/2 w-12 -translate-x-1/2 rounded-full border border-gold-500/40 bg-ink-950/85 py-0.5 text-center text-lg font-bold text-gold-300">

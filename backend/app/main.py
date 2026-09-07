@@ -168,11 +168,14 @@ async def validation_error_handler(_: Request, exc: RequestValidationError) -> J
     """입력 형식 오류 → 400. FastAPI 기본값은 422지만 명세를 따른다."""
     first = exc.errors()[0] if exc.errors() else {}
     loc = [str(p) for p in first.get("loc", []) if p not in ("body", "path", "query")]
+    # **맨 앞**을 쓴다. 배열 안의 값이 틀리면 loc 이 ('body', 'tarot_picks', 0) 이라
+    # 맨 뒤를 쓰면 field 가 "0"(인덱스)으로 나가고, 화면은 어느 칸인지 못 찾는다
+    # (점검에서 발견 — 프론트가 [data-field="0"] 을 찾다가 스크롤도 못 했다).
     return _error(
         400,
         "INVALID_INPUT",
         "입력값을 다시 확인해 주세요.",
-        loc[-1] if loc else None,
+        loc[0] if loc else None,
     )
 
 

@@ -95,8 +95,8 @@ export default function TarotFan({ picks, onChange, error }: Props) {
                 className={
                   'absolute left-1/2 top-0 flex items-end justify-center rounded-b pb-1.5 text-[10px] font-semibold ' +
                   (on
-                    ? 'border border-gold-400 bg-ink-700 text-gold-300 z-10'
-                    : 'border border-gold-500/25 bg-ink-800 text-transparent')
+                    ? 'border border-gold-300 bg-ink-600 text-gold-200 z-10'
+                    : 'border border-gold-400/45 bg-ink-700 text-transparent')
                 }
                 style={{
                   width: CARD_W,
@@ -104,7 +104,7 @@ export default function TarotFan({ picks, onChange, error }: Props) {
                   marginLeft: -CARD_W / 2,
                   transformOrigin: `50% -${PIVOT_PX}px`,
                   transform: `rotate(${(deg * STEP_DEG - part).toFixed(2)}deg)${on ? ' translateY(26px)' : ''}`,
-                  ...lattice(6, on ? 0.3 : 0.14),
+                  ...lattice(6, on ? 0.5 : 0.28),
                 }}
               >
                 {on ? n : ''}
@@ -155,23 +155,23 @@ export default function TarotFan({ picks, onChange, error }: Props) {
               </label>
               <div
                 className={
-                  'relative mt-1.5 flex items-center justify-center overflow-hidden rounded-lg ' +
+                  'relative mt-1.5 flex flex-col items-center justify-end overflow-hidden rounded-lg pb-2.5 ' +
                   (filled
-                    ? 'border border-gold-400 bg-ink-900'
+                    ? 'border border-gold-400 bg-ink-600'
                     : active
-                      ? 'border-2 border-dashed border-gold-500/60 bg-paper-100 dark:bg-ink-900'
-                      : 'border border-dashed border-paper-300 bg-paper-100 dark:border-ink-700 dark:bg-ink-900')
+                      ? 'border-2 border-dashed border-gold-500/70 bg-paper-100 dark:bg-ink-800'
+                      : 'border border-dashed border-paper-300 bg-paper-100 dark:border-ink-700 dark:bg-ink-800')
                 }
-                style={{ aspectRatio: '1 / 1.72', ...(filled ? lattice(9, 0.22) : {}) }}
+                style={{ aspectRatio: '1 / 1.72', ...(filled ? lattice(9, 0.4) : {}) }}
               >
                 {filled && (
                   <>
                     {/* 이중 테두리 — 옛 카드 뒷면의 안쪽 선 */}
                     <span
                       aria-hidden="true"
-                      className="pointer-events-none absolute inset-1.5 rounded border border-gold-500/35"
+                      className="pointer-events-none absolute inset-1.5 rounded border border-gold-400/60"
                     />
-                    <Rosette className="pointer-events-none absolute inset-x-0 top-[22%] mx-auto size-2/5 text-gold-400/50" />
+                    <Rosette className="pointer-events-none absolute inset-x-0 top-[16%] mx-auto size-[34%] text-gold-300/80" />
                   </>
                 )}
                 <input
@@ -181,16 +181,27 @@ export default function TarotFan({ picks, onChange, error }: Props) {
                   value={picks[i] ?? ''}
                   placeholder={`1~${FAN_SIZE}`}
                   onChange={(e) => setPick(i, e.target.value)}
-                  aria-label={`${slot.label} — 카드 번호`}
+                  aria-label={`${slot.label} — 카드 번호 입력`}
+                  /*
+                    숫자를 **넣는 칸**으로 보여야 한다. 무늬 위에 글자만 얹으면
+                    누를 곳인지 알 수 없다 — 흰 바탕·테두리·커서를 갖춘 칸으로 둔다.
+                  */
                   className={
-                    'text-center outline-none ' +
-                    (filled
-                      // 무늬 위에 얹히니 번호만 감싸는 작은 자리를 둔다.
-                      // 카드 폭을 가로지르는 띠를 두면 카드가 두 동으로 잘려 보인다.
-                      ? 'absolute bottom-3 left-1/2 w-12 -translate-x-1/2 rounded-full border border-gold-500/40 bg-ink-950/85 py-0.5 text-lg font-bold text-gold-300'
-                      : 'w-full bg-transparent text-sm text-ink-400 placeholder:text-ink-400')
+                    'relative w-[74%] rounded-md border-2 bg-white py-1.5 text-center text-lg font-bold ' +
+                    'text-ink-900 caret-gold-600 shadow-inner outline-none transition-colors ' +
+                    'placeholder:text-sm placeholder:font-normal placeholder:text-ink-400 ' +
+                    'focus:border-gold-500 focus:ring-2 focus:ring-gold-400/40 ' +
+                    (filled ? 'border-gold-500' : 'border-paper-300')
                   }
                 />
+                <span
+                  className={
+                    'relative mt-1 text-[11px] ' +
+                    (filled ? 'text-gold-200' : 'text-ink-400 dark:text-ink-300')
+                  }
+                >
+                  번호 입력
+                </span>
               </div>
             </div>
           )

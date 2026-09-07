@@ -110,3 +110,17 @@ def test_배치는_seed_로_재현된다():
     b = draw_picks([7, 42, 61], seed=12345)
     assert [c.card for c in a] == [c.card for c in b]
     assert [c.card for c in a] != [c.card for c in draw_picks([7, 42, 61], seed=999)]
+
+
+def test_문자열_번호는_받지_않는다():
+    """계약이 느슨하면 프론트와 서버가 다른 것을 주고받아도 조용히 넘어간다.
+
+    pydantic 기본값은 강제 변환이라 ["7","42","61"] 이 통과했다(점검에서 발견).
+    값 검증은 그 뒤에도 정상이라 위험하지는 않았지만, 숫자로 약속한 자리다.
+    """
+    r = client.post(
+        "/api/v1/readings",
+        json={**BASE, "tarot_mode": "manual", "tarot_picks": ["7", "42", "61"]},
+    )
+    assert r.status_code == 400
+    assert r.json()["error"]["field"] == "tarot_picks"
