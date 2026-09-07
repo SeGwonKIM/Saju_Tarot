@@ -284,6 +284,42 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
           )}
         </Card>
 
+        {/*
+          ⑤ 이번 달 흐름 — **사주 풀이 바로 다음**이다.
+          이 글은 세운·월운을 근거로 쓴다(§8.5) — 타로가 아니라 **사주**다.
+          그래서 사주끼리 묶었다: 사주 풀이 → 이번 달 흐름 → 원국 → 오행 → 계산 기준.
+          그 뒤가 타로 쪽이다: 주제별 조언(타로 비중이 크다) → 뽑힌 카드.
+        */}
+        {report && (
+          <Card className="p-6 sm:p-7">
+            <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
+              이번 달 흐름
+            </h2>
+            <ol className="mt-4 space-y-3">
+              {report.monthly_flow.map((line, i) => (
+                <li key={i} className="flex gap-3 text-[15px] leading-relaxed">
+                  <span className="font-display font-bold text-gold-600 dark:text-gold-400">
+                    {i + 1}
+                  </span>
+                  <span className="text-ink-700 dark:text-paper-200">{line}</span>
+                </li>
+              ))}
+            </ol>
+            {report.keywords.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {report.keywords.map((k) => (
+                  <span
+                    key={k}
+                    className="rounded-full bg-gold-500/12 px-3 py-1 text-xs font-medium text-gold-700 dark:text-gold-300"
+                  >
+                    #{k}
+                  </span>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
         {/* ② 원국 4주 */}
         <Card className="p-6 sm:p-7">
           <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
@@ -356,42 +392,6 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
             )}
           </dl>
         </details>
-
-        {/*
-          ⑤ 이번 달 흐름.
-          예전에는 "핵심 산출물이므로 위로 올린다"며 사주 풀이 바로 다음에 뒀는데,
-          사주 원국·오행·계산 기준을 그 자리로 옮기면서 아래로 내려왔다(사용자 지시).
-          근거(원국·오행)를 먼저 보여주고 그 다음에 이번 달 이야기로 넘어가는 흐름이다.
-        */}
-        {report && (
-          <Card className="p-6 sm:p-7">
-            <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
-              이번 달 흐름
-            </h2>
-            <ol className="mt-4 space-y-3">
-              {report.monthly_flow.map((line, i) => (
-                <li key={i} className="flex gap-3 text-[15px] leading-relaxed">
-                  <span className="font-display font-bold text-gold-600 dark:text-gold-400">
-                    {i + 1}
-                  </span>
-                  <span className="text-ink-700 dark:text-paper-200">{line}</span>
-                </li>
-              ))}
-            </ol>
-            {report.keywords.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-2">
-                {report.keywords.map((k) => (
-                  <span
-                    key={k}
-                    className="rounded-full bg-gold-500/12 px-3 py-1 text-xs font-medium text-gold-700 dark:text-gold-300"
-                  >
-                    #{k}
-                  </span>
-                ))}
-              </div>
-            )}
-          </Card>
-        )}
 
         {/* ⑥ 카테고리 조언 */}
         {report && (
