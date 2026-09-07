@@ -218,3 +218,58 @@ def test_daily_limit_does_not_touch_the_write_path():
     before = rate_limit._day_global
     client.post("/api/v1/readings", json=BODY, headers={"X-Forwarded-For": "4.4.4.4"})
     assert rate_limit._day_global == before
+
+
+# ── 쓰기 상한 (계산·공유 — 돈은 안 들지만 DB 에 행이 쌓인다) ─────────
+#
+# 예전에는 IP당만 세서 **전체가 무제한**이었다. IP 를 바꿔가며 넣으면 그대로 통과했다.
+# 리포트 1건이 약 5KB 라 쓰레기 행이 쌓이면 조회가 느려지고 백업도 무거워진다.
+
+
+def 계산요청(ip: str):
+    return client.post("/api/v1/readings", json=BODY, headers={"X-Forwarded-For": ip})
+
+
+def test_write_global_limit_blocks_rotating_ips():
+    """IP 를 바꿔가며 때려도 전체 한도에서 멈춰야 한다."""
+    for i in range(rate_limit.WRITE_GLOBAL_LIMIT):
+        계산요청(f"192.0.{i // 250}.{i % 250}")
+    r = 계산요청("8.8.4.4")
+    assert r.status_code == 429
+    assert r.json()["error"]["code"] == "RATE_LIMITED"
+
+
+def test_write_limits_are_looser_than_hourly():
+    """하루 한도가 시간당보다 촘촘하면 시간당 한도가 죽은 코드가 된다."""
+    assert rate_limit.DAILY_WRITE_GLOBAL_LIMIT >= rate_limit.WRITE_GLOBAL_LIMIT
+    assert rate_limit.DAILY_WRITE_PER_IP_LIMIT >= rate_limit.WRITE_PER_IP_LIMIT
+
+
+def test_daily_write_limit_has_its_own_message():
+    """쓰기 하루 한도는 '실행'이 아니라 '요청' 한도로 안내한다."""
+    rate_limit._roll_day(datetime.now(rate_limit.KST))
+    rate_limit._day_writes_global = rate_limit.DAILY_WRITE_GLOBAL_LIMIT
+
+    r = 계산요청("3.3.3.3")
+    assert r.status_code == 429
+    assert r.json()["error"]["code"] == "DAILY_WRITE_LIMIT_EXCEEDED"
+    msg = r.json()["error"]["message"]
+    assert "요청 한도" in msg
+    assert "자정" in msg
+    assert "실행 한도" not in msg
+
+
+def test_write_and_report_buckets_are_separate():
+    """계산을 많이 해도 풀이(요금) 한도가 닳지 않아야 한다."""
+    for i in range(rate_limit.WRITE_PER_IP_LIMIT):
+        계산요청("7.1.1.1")
+    assert rate_limit._day_global == 0
+    assert post(ip="7.1.1.1").status_code != 429
+
+
+def test_write_day_rolls_over():
+    """자정이 지나면 쓰기 하루치도 새로 시작한다."""
+    rate_limit._roll_day(datetime.now(rate_limit.KST) - timedelta(days=1))
+    rate_limit._day_writes_global = rate_limit.DAILY_WRITE_GLOBAL_LIMIT
+    rate_limit._roll_day(datetime.now(rate_limit.KST))
+    assert rate_limit._day_writes_global == 0

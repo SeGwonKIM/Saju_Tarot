@@ -38,6 +38,15 @@ COSTLY_SUFFIX = "/report"
 WRITE_PREFIX = "/api/v1/readings"
 WRITE_PER_IP_LIMIT = 30
 
+# IP당만 세면 **전체는 무제한**이다 — 요금 경로에는 GLOBAL_LIMIT 이 있는데 이쪽에는
+# 없었다. IP 를 바꿔가며 넣으면 그대로 통과한다(점검에서 발견).
+# 리포트 1건이 약 5KB 라, 하루 상한이 없으면 쓰레기 행이 계속 쌓여 조회가 느려지고
+# 백업도 무거워진다. 실사용은 하루 10건 남짓이라 아래 값도 넉넉하다.
+#   최악의 경우 = DAILY_WRITE_GLOBAL_LIMIT × 5KB ≈ 하루 2.5MB
+WRITE_GLOBAL_LIMIT = 200
+DAILY_WRITE_PER_IP_LIMIT = 60
+DAILY_WRITE_GLOBAL_LIMIT = 500
+
 PER_IP_LIMIT = 10
 GLOBAL_LIMIT = 100
 
@@ -63,6 +72,9 @@ _day_per_ip: dict[str, int] = defaultdict(int)
 # 쓰기 바구니는 요금 바구니와 **따로** 둔다.
 # 같이 세면 계산 몇 번에 풀이 한도가 닳아 버린다.
 _writes: dict[str, deque[float]] = defaultdict(deque)
+_writes_global: deque[float] = deque()
+_day_writes_global = 0
+_day_writes_per_ip: dict[str, int] = defaultdict(int)
 
 
 def client_ip(request: Request) -> str:
@@ -111,25 +123,50 @@ def is_write(request: Request) -> bool:
     )
 
 
-def check_write(request: Request) -> tuple[bool, int]:
-    """쓰기 상한. 요금 한도와 따로 센다."""
+def check_write(request: Request) -> tuple[bool, int, str]:
+    """쓰기 상한. 요금 한도와 따로 센다.
+
+    IP당·전체를 모두 본다. 예전에는 IP당만 세서 IP 를 바꿔가면 전체가 무제한이었다.
+    하루 상한도 함께 둔다 — 쓰레기 행이 쌓이면 조회가 느려지고 백업이 무거워진다.
+    """
     now = time.monotonic()
-    bucket = _writes[client_ip(request)]
+    now_kst = datetime.now(KST)
+    ip = client_ip(request)
+
+    _roll_day(now_kst)
+
+    global _day_writes_global
+    if _day_writes_global >= DAILY_WRITE_GLOBAL_LIMIT:
+        return False, _until_midnight(now_kst), "DAILY_WRITE_LIMIT_EXCEEDED"
+    if _day_writes_per_ip[ip] >= DAILY_WRITE_PER_IP_LIMIT:
+        return False, _until_midnight(now_kst), "DAILY_WRITE_LIMIT_EXCEEDED"
+
+    _prune(_writes_global, now)
+    if len(_writes_global) >= WRITE_GLOBAL_LIMIT:
+        return False, int(WINDOW_SECONDS - (now - _writes_global[0])) + 1, "RATE_LIMITED"
+
+    bucket = _writes[ip]
     _prune(bucket, now)
     if len(bucket) >= WRITE_PER_IP_LIMIT:
-        return False, int(WINDOW_SECONDS - (now - bucket[0])) + 1
+        return False, int(WINDOW_SECONDS - (now - bucket[0])) + 1, "RATE_LIMITED"
+
     bucket.append(now)
-    return True, 0
+    _writes_global.append(now)
+    _day_writes_per_ip[ip] += 1
+    _day_writes_global += 1
+    return True, 0, ""
 
 
 def _roll_day(now_kst: datetime) -> None:
-    """자정(KST)이 지나면 하루치 집계를 새로 시작한다."""
-    global _day, _day_global
+    """자정(KST)이 지나면 하루치 집계를 새로 시작한다 (요금·쓰기 둘 다)."""
+    global _day, _day_global, _day_writes_global
     today = now_kst.date().isoformat()
     if today != _day:
         _day = today
         _day_global = 0
         _day_per_ip.clear()
+        _day_writes_global = 0
+        _day_writes_per_ip.clear()
 
 
 def _until_midnight(now_kst: datetime) -> int:
@@ -180,11 +217,18 @@ def too_many(retry_after: int, code: str = "RATE_LIMITED") -> JSONResponse:
     하루 한도는 문구가 다르다. 자정까지 몇 시간 남았을 수 있는데
     "잠시 후 다시 시도해 주세요"라고 하면 거짓 안내가 된다.
     """
+    hours = retry_after // 3600
+    when = f"약 {hours}시간 뒤" if hours >= 1 else "잠시 뒤"
+
     if code == "DAILY_LIMIT_EXCEEDED":
-        hours = retry_after // 3600
-        when = f"약 {hours}시간 뒤" if hours >= 1 else "잠시 뒤"
         message = (
             f"오늘 실행 한도({DAILY_GLOBAL_LIMIT}건)를 초과했습니다. "
+            f"한국시간 자정({when})에 다시 열립니다."
+        )
+    elif code == "DAILY_WRITE_LIMIT_EXCEEDED":
+        # 문구를 나눈다 — 이쪽은 풀이(돈 드는 것)가 아니라 계산·공유 요청이다
+        message = (
+            f"오늘 요청 한도({DAILY_WRITE_GLOBAL_LIMIT}건)를 초과했습니다. "
             f"한국시간 자정({when})에 다시 열립니다."
         )
     else:
@@ -199,10 +243,13 @@ def too_many(retry_after: int, code: str = "RATE_LIMITED") -> JSONResponse:
 
 def reset() -> None:
     """테스트용."""
-    global _day, _day_global
+    global _day, _day_global, _day_writes_global
     _per_ip.clear()
     _global.clear()
     _writes.clear()
+    _writes_global.clear()
     _day = ""
     _day_global = 0
     _day_per_ip.clear()
+    _day_writes_global = 0
+    _day_writes_per_ip.clear()
