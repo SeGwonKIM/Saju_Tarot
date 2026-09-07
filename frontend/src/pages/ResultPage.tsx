@@ -5,7 +5,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { createShareLink, fetchReading, fetchShared, generateReport } from '../api/readings'
-import type { Reading } from '../schemas/reading'
+import { TOPIC_META } from '../schemas/reading'
+import type { Reading, Topic } from '../schemas/reading'
 import ElementBar from '../components/report/ElementBar'
 import PillarGrid from '../components/report/PillarGrid'
 import TarotCard from '../components/report/TarotCard'
@@ -392,6 +393,26 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
             )}
           </dl>
         </details>
+
+        {/*
+          해석 구역이 여기서 시작한다.
+          위쪽은 사주만으로 쓴 것(원국·세운·월운)과 그 근거이고,
+          아래쪽은 **사주와 타로를 함께** 본 것이다 — 조언은 주제마다 비중이 다르고
+          (PRD §3.4), 뽑힌 카드가 그 타로 쪽 근거다.
+          비중을 숫자로 밝히지 않으면 "재물 조언에는 왜 카드 얘기가 적지?" 하게 된다.
+        */}
+        <div className="pt-1">
+          <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
+            해석 (사주 + 타로)
+          </h2>
+          <p className="mt-1.5 text-xs leading-relaxed text-ink-400 dark:text-ink-300">
+            주제에 따라 비중이 다릅니다 ·{' '}
+            {(reading.topics as Topic[])
+              .filter((t) => TOPIC_META[t])
+              .map((t) => `${t} 사주 ${TOPIC_META[t].saju} : 타로 ${TOPIC_META[t].tarot}`)
+              .join(' · ')}
+          </p>
+        </div>
 
         {/* ⑥ 카테고리 조언 */}
         {report && (
