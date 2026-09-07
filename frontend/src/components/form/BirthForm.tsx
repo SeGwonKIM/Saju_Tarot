@@ -23,7 +23,6 @@ import {
 import { JIJI_HOURS, YEARS, formatDateKo } from '../../lib/calendar'
 import { DateNotFound } from '../../api/calendar'
 import { useConvertedDate, useLunarYear } from '../../hooks/useCalendar'
-import { eulReul } from '../../lib/korean'
 import { Card, Checkbox, Chip, Field, Segmented, Select, TextInput } from '../ui'
 
 type Errors = Partial<Record<keyof ReadingInput | 'form', string>>
@@ -342,13 +341,6 @@ export default function BirthForm({
 
         </div>
 
-        {/* ── 타로 뽑기 — 여기부터는 사주가 아니다 (PRD §8.6.1) ─── */}
-        <TarotFan
-          picks={picks}
-          onChange={setPicks}
-          error={touched.tarot_picks ? errors.tarot_picks : undefined}
-        />
-
         <hr className="border-paper-200 dark:border-ink-800" />
 
         {/* ── 3. 무엇이 궁금한가 ───────────────────────────── */}
@@ -393,6 +385,13 @@ export default function BirthForm({
           </Field>
         </fieldset>
 
+        {/* ── 타로 뽑기 — 여기부터는 사주가 아니다 (PRD §8.6.1) ─── */}
+        <TarotFan
+          picks={picks}
+          onChange={setPicks}
+          error={touched.tarot_picks ? errors.tarot_picks : undefined}
+        />
+
         {/* ── 제출 ─────────────────────────────────────────── */}
         <div className="space-y-4 rounded-xl bg-paper-100/70 p-4 dark:bg-ink-900/60">
           <button
@@ -409,18 +408,12 @@ export default function BirthForm({
             {submitting ? '사주와 타로를 해석하는 중입니다' : '선택한 세 장 뒤집기'}
           </button>
 
-          {/* 무엇이 남았는지 알려준다 (PRD §6.1) */}
+          {/*
+            남은 항목을 늘어놓던 안내는 뺐다 (사용자 지시).
+            빠진 칸은 제출할 때 그 자리로 데려가 알려준다(handleSubmit 참고).
+          */}
           <p className="text-center text-xs text-ink-400 dark:text-ink-300">
-            {ready ? (
-              '입력하신 정보는 리포트 생성에만 쓰입니다'
-            ) : (
-              <>
-                <strong className="font-semibold text-ink-600 dark:text-ink-200">
-                  {missing.join(' · ')}
-                </strong>
-                {eulReul(missing[missing.length - 1])} 입력하면 시작할 수 있어요
-              </>
-            )}
+            입력하신 정보는 리포트 생성에만 쓰입니다
           </p>
         </div>
       </form>
