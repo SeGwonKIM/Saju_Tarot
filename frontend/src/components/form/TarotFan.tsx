@@ -68,13 +68,15 @@ export default function TarotFan({ picks, onChange, error }: Props) {
         <p className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
           이제 타로카드 3장을 뽑습니다
         </p>
-        {/* 두 문장을 줄로 갈라 놓는다 — 한 덩이로 흐르면 어디서 끊길지 폭에 따라 달라진다 */}
-        <p className="mt-2 text-sm leading-relaxed text-ink-600 dark:text-ink-300">
-          카드는 보이지 않게 섞여 있습니다. 왼쪽 끝이 1번, 오른쪽 끝이 {FAN_SIZE}번입니다.
-        </p>
-        <p className="mt-1 text-sm leading-relaxed text-ink-600 dark:text-ink-300">
-          번호로 세 장을 고르세요.
-        </p>
+        {/*
+          문장마다 줄을 바꾼다 — 한 덩이로 흐르면 화면 폭에 따라 끊기는 자리가
+          달라져서, 읽는 사람이 매번 다른 모양을 본다.
+        */}
+        <div className="mt-2 space-y-1 text-sm leading-relaxed text-ink-600 dark:text-ink-300">
+          <p>카드는 보이지 않게 섞여 있습니다.</p>
+          <p>왼쪽 끝이 1번, 오른쪽 끝이 {FAN_SIZE}번입니다.</p>
+          <p>번호로 세 장을 고르세요.</p>
+        </div>
       </div>
 
       {/* ── 부채꼴 ─────────────────────────────────────────── */}
