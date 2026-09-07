@@ -327,6 +327,28 @@ export default function BirthForm({
           </Field>
         </fieldset>
 
+        {/* ── 개인정보 동의 — 생년월일을 받은 바로 다음에 묻는다 ─── */}
+        <div className="space-y-4 rounded-xl bg-paper-100/70 p-4 dark:bg-ink-900/60">
+          <Checkbox id="agree" checked={agreed} onChange={setAgreed}>
+            생년월일·시간을 <strong>리포트 생성 목적</strong>으로만 쓰고,{' '}
+            <strong>90일 뒤 자동 삭제</strong>하는 것에 동의합니다.
+            <span className="ml-1 text-gold-600 dark:text-gold-400">*</span>
+          </Checkbox>
+          {touched.privacy_agreed && errors.privacy_agreed && (
+            <p role="alert" className="text-xs font-medium text-rose-600 dark:text-rose-400">
+              {errors.privacy_agreed}
+            </p>
+          )}
+
+        </div>
+
+        {/* ── 타로 뽑기 — 여기부터는 사주가 아니다 (PRD §8.6.1) ─── */}
+        <TarotFan
+          picks={picks}
+          onChange={setPicks}
+          error={touched.tarot_picks ? errors.tarot_picks : undefined}
+        />
+
         <hr className="border-paper-200 dark:border-ink-800" />
 
         {/* ── 3. 무엇이 궁금한가 ───────────────────────────── */}
@@ -371,26 +393,8 @@ export default function BirthForm({
           </Field>
         </fieldset>
 
-        {/* ── 타로 뽑기 — 여기부터는 사주가 아니다 (PRD §8.6.1) ─── */}
-        <TarotFan
-          picks={picks}
-          onChange={setPicks}
-          error={touched.tarot_picks ? errors.tarot_picks : undefined}
-        />
-
-        {/* ── 동의 + 제출 ──────────────────────────────────── */}
+        {/* ── 제출 ─────────────────────────────────────────── */}
         <div className="space-y-4 rounded-xl bg-paper-100/70 p-4 dark:bg-ink-900/60">
-          <Checkbox id="agree" checked={agreed} onChange={setAgreed}>
-            생년월일·시간을 <strong>리포트 생성 목적</strong>으로만 쓰고,{' '}
-            <strong>90일 뒤 자동 삭제</strong>하는 것에 동의합니다.
-            <span className="ml-1 text-gold-600 dark:text-gold-400">*</span>
-          </Checkbox>
-          {touched.privacy_agreed && errors.privacy_agreed && (
-            <p role="alert" className="text-xs font-medium text-rose-600 dark:text-rose-400">
-              {errors.privacy_agreed}
-            </p>
-          )}
-
           <button
             type="submit"
             disabled={submitting}

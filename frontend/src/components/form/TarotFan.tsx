@@ -63,10 +63,10 @@ export default function TarotFan({ picks, onChange, error }: Props) {
 
   return (
     <div data-field="tarot_picks" className="space-y-4">
-      {/* ── 경계 — 위쪽은 사주다. 두 구역을 완전히 갈라 놓는다 ────── */}
+      {/* ── 경계 — 여기서 타로 구역이 시작된다 (PRD §8.6.1) ────── */}
       <div className="border-t border-paper-300 pt-7 dark:border-ink-700">
         <p className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
-          여기까지가 사주입니다. 이제 타로카드 3장을 뽑습니다.
+          이제 타로카드 3장을 뽑습니다
         </p>
         <p className="mt-2 text-sm leading-relaxed text-ink-600 dark:text-ink-300">
           카드는 보이지 않게 섞여 있습니다. 왼쪽부터 번호로 세 장을 고르세요.
@@ -74,8 +74,8 @@ export default function TarotFan({ picks, onChange, error }: Props) {
       </div>
 
       {/* ── 부채꼴 ─────────────────────────────────────────── */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-ink-900 to-ink-950 px-2 pb-3 pt-4">
-        <div className="starfield absolute inset-0 opacity-60" aria-hidden="true" />
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-ink-700 to-ink-800 px-2 pb-3 pt-4">
+        <div className="starfield absolute inset-0 opacity-30" aria-hidden="true" />
         <div
           className="relative mx-auto"
           style={{ height: CARD_H + 60 }}
@@ -95,8 +95,8 @@ export default function TarotFan({ picks, onChange, error }: Props) {
                 className={
                   'absolute left-1/2 top-0 flex items-end justify-center rounded-b pb-1.5 text-[10px] font-semibold ' +
                   (on
-                    ? 'border border-gold-300 bg-ink-600 text-gold-200 z-10'
-                    : 'border border-gold-400/45 bg-ink-700 text-transparent')
+                    ? 'border border-gold-300 text-gold-100 z-10'
+                    : 'border border-gold-400/55 text-transparent')
                 }
                 style={{
                   width: CARD_W,
@@ -104,7 +104,10 @@ export default function TarotFan({ picks, onChange, error }: Props) {
                   marginLeft: -CARD_W / 2,
                   transformOrigin: `50% -${PIVOT_PX}px`,
                   transform: `rotate(${(deg * STEP_DEG - part).toFixed(2)}deg)${on ? ' translateY(26px)' : ''}`,
-                  ...lattice(6, on ? 0.5 : 0.28),
+                  // 팔레트에 ink-500 이 없다. 판(ink-700)보다 확실히 밝아야
+                  // 카드 하나하나가 보이므로 그 사이 값을 직접 준다
+                  backgroundColor: on ? '#7d88cf' : '#5b66a8',
+                  ...lattice(6, on ? 0.55 : 0.34),
                 }}
               >
                 {on ? n : ''}
@@ -117,7 +120,7 @@ export default function TarotFan({ picks, onChange, error }: Props) {
             <div
               key={`edge-${n}`}
               aria-hidden="true"
-              className="pointer-events-none absolute left-1/2 top-0 flex items-end justify-center text-[13px] font-semibold text-gold-300/80"
+              className="pointer-events-none absolute left-1/2 top-0 flex items-end justify-center text-[13px] font-semibold text-gold-200"
               style={{
                 width: 26,
                 height: CARD_H + 26,
@@ -130,7 +133,7 @@ export default function TarotFan({ picks, onChange, error }: Props) {
             </div>
           ))}
         </div>
-        <p className="relative mt-1 text-center text-xs text-ink-300">
+        <p className="relative mt-1 text-center text-xs text-paper-200">
           카드를 눌러 크게 볼 수 있습니다
         </p>
       </div>
