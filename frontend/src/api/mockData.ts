@@ -144,17 +144,20 @@ export const MOCK_SAMPLES: Reading[] = [
     name: '홍길동', gender: '여', calendar_type: 'lunar', birth_date: '1988-03-05',
     is_leap_month: false, birth_time: '20:30', birth_place: '서울',
     topics: ['재회운', '상대방속마음', '연애', '재물', '대인관계'], tarot_mode: 'auto',
+    tarot_picks: null,
   }),
   // 시간 모름 (PRD §8.3)
   mockReading({
     name: '김세권', gender: '남', calendar_type: 'solar', birth_date: '1975-11-20',
     is_leap_month: false, birth_time: null, birth_place: '부산',
     topics: ['재물', '대인관계'], tarot_mode: 'auto',
+    tarot_picks: null,
   }),
   // LLM 실패
   mockReadingWithoutReport({
     name: '이영희', gender: '여', calendar_type: 'solar', birth_date: '2001-07-14',
     is_leap_month: false, birth_time: '03:10', birth_place: '대전',
     topics: ['재회운', '상대방속마음'], tarot_mode: 'auto',
+    tarot_picks: null,
   }),
 ]

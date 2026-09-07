@@ -56,6 +56,13 @@ export const SPREAD = [
 ] as const
 
 export const SPREAD_POSITIONS = ['현재', '조언', '방향'] as const
+
+/**
+ * 화면에 부채꼴로 깔리는 카드 수 = 덱 전체 (PRD §8.6.1).
+ * 백엔드 `tarot_service.FAN_SIZE` 와 **같아야** 한다 — 다르면 손님이 고른 번호가
+ * 서버에서 400 으로 막힌다.
+ */
+export const FAN_SIZE = 78
 export type SpreadPosition = (typeof SPREAD_POSITIONS)[number]
 export type ElementName = (typeof ELEMENTS)[number]
 
@@ -125,6 +132,15 @@ export const readingInputSchema = z
       .min(1, '주제를 하나 이상 선택해 주세요.')
       .max(MAX_TOPICS),
     tarot_mode: z.enum(['auto', 'manual']),
+    /**
+     * 손님이 부채꼴에서 고른 자리 번호 3개 (PRD §8.6.1).
+     * 고른 **순서가 자리를 정한다** — 첫 번째가 ① 지금 놓인 자리다.
+     */
+    tarot_picks: z
+      .array(z.number().int().min(1, '1~78 중에서 골라 주세요.').max(FAN_SIZE, '1~78 중에서 골라 주세요.'))
+      .length(3, '카드는 세 장을 고릅니다.')
+      .refine((v) => new Set(v).size === v.length, '이미 고른 번호입니다. 다른 번호를 골라 주세요.')
+      .nullable(),
     privacy_agreed: z
       .boolean()
       .refine((v) => v === true, '개인정보 수집·이용에 동의해 주세요.'),
@@ -136,6 +152,16 @@ export const readingInputSchema = z
     },
     { message: '1900년 이후 날짜만 지원합니다.', path: ['birth_date'] },
   )
+  // 서버와 **같은 규칙을 여기서 다시** 본다 (PRD §12.2 프론트는 못 믿는다 — 그 반대도 참이다.
+  // 서버가 400 을 내기 전에 화면에서 잡아야 손님이 어디가 문제인지 안다)
+  .refine((v) => v.tarot_mode !== 'manual' || v.tarot_picks !== null, {
+    message: '카드 세 장을 골라 주세요.',
+    path: ['tarot_picks'],
+  })
+  .refine((v) => v.tarot_mode !== 'auto' || v.tarot_picks === null, {
+    message: '자동 뽑기에는 번호를 보내지 않습니다.',
+    path: ['tarot_picks'],
+  })
 
 export type ReadingInput = z.infer<typeof readingInputSchema>
 
@@ -202,6 +228,8 @@ export const readingSchema = z.object({
         card_ko: z.string(),
         reversed: z.boolean(),
         keywords: z.array(z.string()),
+        /** 손님이 고른 자리 번호. auto 로 뽑았거나 v3.6 이전 저장분이면 null */
+        pick: z.number().int().nullable().optional(),
       }),
     )
     .length(3),

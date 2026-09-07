@@ -6,6 +6,7 @@
  * 프론트 검증은 편의일 뿐이고, 같은 규칙을 서버에서 다시 검증한다 (PRD §12.2).
  */
 import { useState } from 'react'
+import TarotFan from './TarotFan'
 import {
   BIRTH_PLACES,
   CALENDAR_TYPES,
@@ -48,6 +49,7 @@ export default function BirthForm({
   const [timeUnknown, setTimeUnknown] = useState(false)
   const [place, setPlace] = useState('서울')
   const [topics, setTopics] = useState<Topic[]>([...TOPICS])
+  const [picks, setPicks] = useState<(number | null)[]>([null, null, null])
   const [agreed, setAgreed] = useState(false)
   const [errors, setErrors] = useState<Errors>({})
   const [touched, setTouched] = useState<Record<string, boolean>>({})
@@ -82,6 +84,7 @@ export default function BirthForm({
   if (!name.trim()) missing.push('이름')
   if (!gender) missing.push('성별')
   if (topics.length === 0) missing.push('상담 주제')
+  if (picks.some((p) => p === null)) missing.push('타로 카드 3장')
   if (!agreed) missing.push('개인정보 동의')
   const ready = missing.length === 0
 
@@ -96,7 +99,10 @@ export default function BirthForm({
       birth_time: birthTime,
       birth_place: place,
       topics,
-      tarot_mode: 'auto' as const,
+      // 화면의 기본 흐름은 손님이 직접 뽑는 것이다 (PRD §8.6.1).
+      // API 기본값은 여전히 auto 이므로 여기서 명시해 보낸다.
+      tarot_mode: 'manual' as const,
+      tarot_picks: picks.every((p): p is number => p !== null) ? picks : null,
       privacy_agreed: agreed,
     }
     const parsed = readingInputSchema.safeParse(candidate)
@@ -107,7 +113,7 @@ export default function BirthForm({
         next[key] ??= issue.message
       }
       setErrors(next)
-      setTouched({ name: true, gender: true, topics: true, privacy_agreed: true })
+      setTouched({ name: true, gender: true, topics: true, tarot_picks: true, privacy_agreed: true })
 
       // 빠진 칸으로 데려간다 — 버튼만 안 눌리면 어디가 문제인지 알 수 없다
       const firstKey = Object.keys(next)[0]
@@ -364,6 +370,13 @@ export default function BirthForm({
             )}
           </Field>
         </fieldset>
+
+        {/* ── 타로 뽑기 — 여기부터는 사주가 아니다 (PRD §8.6.1) ─── */}
+        <TarotFan
+          picks={picks}
+          onChange={setPicks}
+          error={touched.tarot_picks ? errors.tarot_picks : undefined}
+        />
 
         {/* ── 동의 + 제출 ──────────────────────────────────── */}
         <div className="space-y-4 rounded-xl bg-paper-100/70 p-4 dark:bg-ink-900/60">
