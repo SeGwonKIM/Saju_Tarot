@@ -41,14 +41,22 @@ if (-not (Get-Command cloudflared -ErrorAction SilentlyContinue)) {
 
 # ── 화면 빌드 ────────────────────────────────────────────
 $dist = Join-Path $루트 "frontend\dist"
-if (-not (Test-Path $dist)) {
-    알림 "화면을 빌드합니다... (처음 한 번만 오래 걸립니다)"
-    Push-Location (Join-Path $루트 "frontend")
-    try {
-        if (-not (Test-Path "node_modules")) { npm install | Out-Null }
-        $env:VITE_USE_MOCK = "false"      # 이걸 안 끄면 가짜 리포트가 나간다
-        npm run build | Out-Null
-    } finally { Pop-Location }
+
+# **매번 빌드한다.** 예전에는 dist 가 없을 때만 빌드했는데, 그러면 화면 코드를
+# 고쳐도 옛 dist 가 그대로 서비스된다. 실제로 사흘 지난 빌드가 공개되고 있었다
+# — 개발 서버(:5173)에서는 고친 화면이 보여서 알아채지 못했다.
+# 빌드는 3초면 끝나므로 조건을 걸어 아낄 값어치가 없다.
+알림 "화면을 빌드합니다..."
+Push-Location (Join-Path $루트 "frontend")
+try {
+    if (-not (Test-Path "node_modules")) { npm install | Out-Null }
+    $env:VITE_USE_MOCK = "false"      # 이걸 안 끄면 가짜 리포트가 나간다
+    npm run build | Out-Null
+} finally { Pop-Location }
+
+if (-not (Test-Path (Join-Path $dist "index.html"))) {
+    알림 "✗ 화면 빌드에 실패했습니다." Red
+    exit 1
 }
 알림 "✓ 화면 준비 완료" Green
 

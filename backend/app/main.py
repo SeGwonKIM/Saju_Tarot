@@ -196,6 +196,38 @@ app.include_router(share_router.router, prefix="/api/v1")
 
 
 @app.on_event("startup")
+def warn_if_dist_is_stale() -> None:
+    """빌드가 화면 코드보다 오래됐으면 크게 알린다.
+
+    같은 서버가 frontend/dist 를 그대로 내보내므로(§14.6), 화면을 고쳐도
+    **다시 빌드하지 않으면 옛 화면이 서비스된다.** 개발 서버(:5173)에서는
+    고친 화면이 보이기 때문에 알아채기 어렵다 — 실제로 사흘 지난 빌드가
+    공개된 채로 돌고 있었다.
+
+    실행 스크립트에 빌드를 넣어 뒀지만, launch.json 처럼 그걸 거치지 않는
+    경로가 또 생길 수 있다. 그래서 서버 쪽에도 그물을 둔다.
+    """
+    src = DIST.parent / "src"
+    index = DIST / "index.html"
+    if not index.exists() or not src.is_dir():
+        return
+    try:
+        newest = max(f.stat().st_mtime for f in src.rglob("*") if f.is_file())
+    except ValueError:
+        return
+    if newest > index.stat().st_mtime:
+        from datetime import datetime
+
+        fmt = "%Y-%m-%d %H:%M"
+        log.warning(
+            "빌드가 화면 코드보다 오래됐습니다 — 옛 화면이 서비스됩니다. "
+            "dist %s < src %s. `npm run build` 를 돌리세요.",
+            datetime.fromtimestamp(index.stat().st_mtime).strftime(fmt),
+            datetime.fromtimestamp(newest).strftime(fmt),
+        )
+
+
+@app.on_event("startup")
 def purge_expired_on_start() -> None:
     """보관 기간이 지난 리포트를 정리한다 (PRD §12.9).
 
