@@ -346,7 +346,7 @@ export default function BirthForm({
         {/* ── 3. 무엇이 궁금한가 ───────────────────────────── */}
         <fieldset className="space-y-5">
           <legend className="mb-1 font-display text-lg font-bold text-ink-900 dark:text-paper-100">
-            무엇이 궁금하세요
+            이번에는 타로입니다. 무엇이 궁금하세요
           </legend>
           <Field
             label="상담 주제"
