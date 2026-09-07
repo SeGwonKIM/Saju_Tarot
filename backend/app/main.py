@@ -118,10 +118,10 @@ async def limit_costly_requests(request: Request, call_next):
             return rate_limit.too_many(retry_after)
 
     if rate_limit.is_costly(request):
-        allowed, retry_after = rate_limit.check(request)
+        allowed, retry_after, code = rate_limit.check(request)
         if not allowed:
-            log.warning("레이트리밋 차단 %s", request.url.path)
-            return rate_limit.too_many(retry_after)
+            log.warning("레이트리밋 차단 %s (%s)", request.url.path, code)
+            return rate_limit.too_many(retry_after, code)
     return await call_next(request)
 
 

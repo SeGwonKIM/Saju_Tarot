@@ -12,6 +12,7 @@ from __future__ import annotations
 import logging
 import time
 from collections import defaultdict, deque
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -40,8 +41,25 @@ WRITE_PER_IP_LIMIT = 30
 PER_IP_LIMIT = 10
 GLOBAL_LIMIT = 100
 
+# 하루 상한 (PRD §11.3 "일 호출 상한 + 초과 시 429").
+# 시간당 한도만 있으면 **하루가 열려 있다** — 100건/시간 × 24시간 × 50원 ≈ 하루 12만원.
+# 실사용은 하루 10건 남짓이라 아래 값도 20배 여유다. 요금이 걱정되면 낮춘다.
+#   최악의 경우 = DAILY_GLOBAL_LIMIT × 건당 약 50원
+#
+# ⚠️ 하루 한도는 시간당 한도보다 **느슨해야** 한다. 더 촘촘하면 시간당 한도가
+#    영영 걸리지 않는 죽은 코드가 된다 (test_daily_limit_is_looser_than_hourly).
+DAILY_PER_IP_LIMIT = 20
+DAILY_GLOBAL_LIMIT = 200
+
 _per_ip: dict[str, deque[float]] = defaultdict(deque)
 _global: deque[float] = deque()
+
+# 하루치는 흐르는 창이 아니라 **한국시간 달력 하루**로 센다.
+# 사용자에게 "자정에 다시 열린다"고 말할 수 있어야 하기 때문이다.
+KST = timezone(timedelta(hours=9))
+_day = ""                                   # 집계 중인 KST 날짜 (YYYY-MM-DD)
+_day_global = 0
+_day_per_ip: dict[str, int] = defaultdict(int)
 # 쓰기 바구니는 요금 바구니와 **따로** 둔다.
 # 같이 세면 계산 몇 번에 풀이 한도가 닳아 버린다.
 _writes: dict[str, deque[float]] = defaultdict(deque)
@@ -104,41 +122,87 @@ def check_write(request: Request) -> tuple[bool, int]:
     return True, 0
 
 
-def check(request: Request) -> tuple[bool, int]:
-    """(허용 여부, 재시도까지 남은 초)."""
+def _roll_day(now_kst: datetime) -> None:
+    """자정(KST)이 지나면 하루치 집계를 새로 시작한다."""
+    global _day, _day_global
+    today = now_kst.date().isoformat()
+    if today != _day:
+        _day = today
+        _day_global = 0
+        _day_per_ip.clear()
+
+
+def _until_midnight(now_kst: datetime) -> int:
+    """다음 자정(KST)까지 남은 초. 하루 한도의 Retry-After 로 쓴다."""
+    midnight = (now_kst + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return int((midnight - now_kst).total_seconds()) + 1
+
+
+def check(request: Request) -> tuple[bool, int, str]:
+    """(허용 여부, 재시도까지 남은 초, 막은 이유 코드).
+
+    하루 한도를 먼저 본다 — 더 바깥쪽 울타리이고, 사용자에게 보여줄 안내도
+    "잠시 후"가 아니라 "자정에 다시 열린다"로 달라지기 때문이다.
+    """
     now = time.monotonic()
+    now_kst = datetime.now(KST)
     ip = client_ip(request)
+
+    _roll_day(now_kst)
+
+    global _day_global
+    if _day_global >= DAILY_GLOBAL_LIMIT:
+        return False, _until_midnight(now_kst), "DAILY_LIMIT_EXCEEDED"
+    if _day_per_ip[ip] >= DAILY_PER_IP_LIMIT:
+        return False, _until_midnight(now_kst), "DAILY_LIMIT_EXCEEDED"
 
     _prune(_global, now)
     if len(_global) >= GLOBAL_LIMIT:
-        return False, int(WINDOW_SECONDS - (now - _global[0])) + 1
+        return False, int(WINDOW_SECONDS - (now - _global[0])) + 1, "RATE_LIMITED"
 
     bucket = _per_ip[ip]
     _prune(bucket, now)
     if len(bucket) >= PER_IP_LIMIT:
-        return False, int(WINDOW_SECONDS - (now - bucket[0])) + 1
+        return False, int(WINDOW_SECONDS - (now - bucket[0])) + 1, "RATE_LIMITED"
 
     bucket.append(now)
     _global.append(now)
-    return True, 0
+    _day_per_ip[ip] += 1
+    _day_global += 1
+    return True, 0, ""
 
 
-def too_many(retry_after: int) -> JSONResponse:
-    """PRD §10.6 에러 규약 그대로."""
+def too_many(retry_after: int, code: str = "RATE_LIMITED") -> JSONResponse:
+    """PRD §10.6 에러 규약 그대로.
+
+    하루 한도는 문구가 다르다. 자정까지 몇 시간 남았을 수 있는데
+    "잠시 후 다시 시도해 주세요"라고 하면 거짓 안내가 된다.
+    """
+    if code == "DAILY_LIMIT_EXCEEDED":
+        hours = retry_after // 3600
+        when = f"약 {hours}시간 뒤" if hours >= 1 else "잠시 뒤"
+        message = (
+            f"오늘 실행 한도({DAILY_GLOBAL_LIMIT}건)를 초과했습니다. "
+            f"한국시간 자정({when})에 다시 열립니다."
+        )
+    else:
+        message = "요청이 많습니다. 잠시 후 다시 시도해 주세요."
+
     return JSONResponse(
         status_code=429,
-        content={
-            "error": {
-                "code": "RATE_LIMITED",
-                "message": "요청이 많습니다. 잠시 후 다시 시도해 주세요.",
-            }
-        },
+        content={"error": {"code": code, "message": message}},
         headers={"Retry-After": str(retry_after)},
     )
 
 
 def reset() -> None:
     """테스트용."""
+    global _day, _day_global
     _per_ip.clear()
     _global.clear()
     _writes.clear()
+    _day = ""
+    _day_global = 0
+    _day_per_ip.clear()

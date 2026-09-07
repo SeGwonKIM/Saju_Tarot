@@ -3,6 +3,8 @@
 집 PC 를 인터넷에 공개하면 이게 없을 때 요금이 그대로 나간다 (§17).
 """
 
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -152,3 +154,67 @@ def test_oversized_body_is_rejected():
 
 def test_normal_body_passes():
     assert client.post("/api/v1/readings", json=BODY).status_code == 201
+
+
+# ── 하루 상한 (PRD §11.3 "일 호출 상한 + 초과 시 429") ──────────────
+#
+# 시간당 한도만 있으면 하루가 열려 있다 — 100건/시간 × 24시간 × 50원 ≈ 하루 12만원.
+# 다만 하루 한도는 시간당 한도보다 **느슨해야** 하므로(그래야 시간당 한도가 살아 있다)
+# 빠른 루프로는 시간당 한도가 먼저 걸려 도달할 수 없다.
+# 그래서 하루 집계를 직접 채워 놓고 그다음 요청을 확인한다.
+
+
+def test_daily_limit_is_looser_than_hourly():
+    """하루 한도가 시간당 한도보다 촘촘하면 시간당 한도가 죽은 코드가 된다."""
+    assert rate_limit.DAILY_GLOBAL_LIMIT >= rate_limit.GLOBAL_LIMIT
+    assert rate_limit.DAILY_PER_IP_LIMIT >= rate_limit.PER_IP_LIMIT
+
+
+def test_daily_global_limit_blocks_with_its_own_message():
+    """하루치를 다 쓰면 막고, 문구가 "잠시 후"가 아니라 자정 안내여야 한다."""
+    rate_limit._roll_day(datetime.now(rate_limit.KST))
+    rate_limit._day_global = rate_limit.DAILY_GLOBAL_LIMIT
+
+    r = post(ip="9.9.9.9")
+    assert r.status_code == 429
+    assert r.json()["error"]["code"] == "DAILY_LIMIT_EXCEEDED"
+    msg = r.json()["error"]["message"]
+    assert "실행 한도" in msg
+    assert "자정" in msg
+    assert "잠시 후 다시 시도" not in msg
+    assert int(r.headers["Retry-After"]) > 0
+
+
+def test_daily_per_ip_limit_spares_other_guests():
+    """한 사람이 하루치를 다 써도 다른 손님은 쓸 수 있어야 한다."""
+    rate_limit._roll_day(datetime.now(rate_limit.KST))
+    rate_limit._day_per_ip["5.5.5.5"] = rate_limit.DAILY_PER_IP_LIMIT
+
+    blocked = post(ip="5.5.5.5")
+    assert blocked.status_code == 429
+    assert blocked.json()["error"]["code"] == "DAILY_LIMIT_EXCEEDED"
+    assert post(ip="6.6.6.6").status_code != 429
+
+
+def test_day_rolls_over_at_kst_midnight():
+    """자정이 지나면 하루치가 새로 시작한다 — 어제 한도가 오늘을 막지 않는다."""
+    rate_limit._roll_day(datetime.now(rate_limit.KST) - timedelta(days=1))
+    rate_limit._day_global = rate_limit.DAILY_GLOBAL_LIMIT
+
+    rate_limit._roll_day(datetime.now(rate_limit.KST))
+    assert rate_limit._day_global == 0
+    assert post(ip="7.7.7.7").status_code != 429
+
+
+def test_retry_after_points_at_midnight():
+    """하루 한도의 Retry-After 는 자정까지 남은 초다 (최대 24시간)."""
+    secs = rate_limit._until_midnight(datetime.now(rate_limit.KST))
+    assert 0 < secs <= 86401
+
+
+def test_daily_limit_does_not_touch_the_write_path():
+    """쓰기(계산·공유)는 돈이 안 든다 — 하루 요금 한도에 닳지 않아야 한다."""
+    rate_limit._roll_day(datetime.now(rate_limit.KST))
+    before = rate_limit._day_global
+    client.post("/api/v1/readings", json=BODY, headers={"X-Forwarded-For": "4.4.4.4"})
+    assert rate_limit._day_global == before
