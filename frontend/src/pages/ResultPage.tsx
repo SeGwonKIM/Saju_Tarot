@@ -284,73 +284,6 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
           )}
         </Card>
 
-        {/* ⑤ 이번 달 흐름 — 핵심 산출물이므로 위로 올린다 */}
-        {report && (
-          <Card className="p-6 sm:p-7">
-            <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
-              이번 달 흐름
-            </h2>
-            <ol className="mt-4 space-y-3">
-              {report.monthly_flow.map((line, i) => (
-                <li key={i} className="flex gap-3 text-[15px] leading-relaxed">
-                  <span className="font-display font-bold text-gold-600 dark:text-gold-400">
-                    {i + 1}
-                  </span>
-                  <span className="text-ink-700 dark:text-paper-200">{line}</span>
-                </li>
-              ))}
-            </ol>
-            {report.keywords.length > 0 && (
-              <div className="mt-5 flex flex-wrap gap-2">
-                {report.keywords.map((k) => (
-                  <span
-                    key={k}
-                    className="rounded-full bg-gold-500/12 px-3 py-1 text-xs font-medium text-gold-700 dark:text-gold-300"
-                  >
-                    #{k}
-                  </span>
-                ))}
-              </div>
-            )}
-          </Card>
-        )}
-
-        {/* ⑥ 카테고리 조언 */}
-        {report && (
-          <Card className="divide-y divide-paper-200 dark:divide-ink-800">
-            {Object.entries(report.advice).map(([topic, text]) => (
-              <div key={topic} className="p-6 sm:px-7">
-                <h3 className="font-display text-base font-bold text-ink-900 dark:text-paper-100">
-                  {topic}
-                </h3>
-                <p className="mt-2 text-[15px] leading-relaxed text-ink-600 dark:text-ink-300">
-                  {text}
-                </p>
-              </div>
-            ))}
-          </Card>
-        )}
-
-        {/* ④ 타로 */}
-        <Card className="p-6 sm:p-7">
-          <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
-            뽑힌 카드
-          </h2>
-          <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-300">
-            세 장을 다섯 주제의 공통 근거로 읽습니다 · 직접 고르신 번호로 뽑았습니다
-          </p>
-          {/* 퍼블릭 도메인 이미지 출처 표기 (PRD §18.1 Q5) */}
-          <p className="mt-1 text-[11px] text-ink-300 dark:text-ink-400">
-            카드 그림: 라이더-웨이트 타로(1909, Pamela Colman Smith) · 퍼블릭 도메인
-          </p>
-          {/* 3장 고정 스프레드 (PRD §8.6) */}
-          <div className="mt-5 grid grid-cols-3 gap-4">
-            {tarot.map((c, i) => (
-              <TarotCard key={c.position} card={c} index={i} />
-            ))}
-          </div>
-        </Card>
-
         {/* ② 원국 4주 */}
         <Card className="p-6 sm:p-7">
           <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
@@ -423,6 +356,79 @@ export default function ResultPage({ mode = 'own' }: { mode?: 'own' | 'shared' }
             )}
           </dl>
         </details>
+
+        {/*
+          ⑤ 이번 달 흐름.
+          예전에는 "핵심 산출물이므로 위로 올린다"며 사주 풀이 바로 다음에 뒀는데,
+          사주 원국·오행·계산 기준을 그 자리로 옮기면서 아래로 내려왔다(사용자 지시).
+          근거(원국·오행)를 먼저 보여주고 그 다음에 이번 달 이야기로 넘어가는 흐름이다.
+        */}
+        {report && (
+          <Card className="p-6 sm:p-7">
+            <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
+              이번 달 흐름
+            </h2>
+            <ol className="mt-4 space-y-3">
+              {report.monthly_flow.map((line, i) => (
+                <li key={i} className="flex gap-3 text-[15px] leading-relaxed">
+                  <span className="font-display font-bold text-gold-600 dark:text-gold-400">
+                    {i + 1}
+                  </span>
+                  <span className="text-ink-700 dark:text-paper-200">{line}</span>
+                </li>
+              ))}
+            </ol>
+            {report.keywords.length > 0 && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {report.keywords.map((k) => (
+                  <span
+                    key={k}
+                    className="rounded-full bg-gold-500/12 px-3 py-1 text-xs font-medium text-gold-700 dark:text-gold-300"
+                  >
+                    #{k}
+                  </span>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* ⑥ 카테고리 조언 */}
+        {report && (
+          <Card className="divide-y divide-paper-200 dark:divide-ink-800">
+            {Object.entries(report.advice).map(([topic, text]) => (
+              <div key={topic} className="p-6 sm:px-7">
+                <h3 className="font-display text-base font-bold text-ink-900 dark:text-paper-100">
+                  {topic}
+                </h3>
+                <p className="mt-2 text-[15px] leading-relaxed text-ink-600 dark:text-ink-300">
+                  {text}
+                </p>
+              </div>
+            ))}
+          </Card>
+        )}
+
+        {/* ④ 타로 */}
+        <Card className="p-6 sm:p-7">
+          <h2 className="font-display text-lg font-bold text-ink-900 dark:text-paper-100">
+            뽑힌 카드
+          </h2>
+          <p className="mt-1.5 text-xs text-ink-400 dark:text-ink-300">
+            세 장을 다섯 주제의 공통 근거로 읽습니다 · 직접 고르신 번호로 뽑았습니다
+          </p>
+          {/* 퍼블릭 도메인 이미지 출처 표기 (PRD §18.1 Q5) */}
+          <p className="mt-1 text-[11px] text-ink-300 dark:text-ink-400">
+            카드 그림: 라이더-웨이트 타로(1909, Pamela Colman Smith) · 퍼블릭 도메인
+          </p>
+          {/* 3장 고정 스프레드 (PRD §8.6) */}
+          <div className="mt-5 grid grid-cols-3 gap-4">
+            {tarot.map((c, i) => (
+              <TarotCard key={c.position} card={c} index={i} />
+            ))}
+          </div>
+        </Card>
+
 
         {/* 공유 — 본인 리포트에서만 (PRD §12.3) */}
         {mode === 'own' && (
