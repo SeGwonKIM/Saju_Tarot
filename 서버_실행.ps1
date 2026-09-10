@@ -14,6 +14,34 @@ $ErrorActionPreference = "Stop"
 $루트 = $PSScriptRoot
 $파이썬 = Join-Path $루트 "backend\.venv\Scripts\python.exe"
 
+# 휴대폰에서 열 수 있는 **진짜** 랜 주소를 고른다.
+#
+# 예전에는 127.* 과 169.254.* 만 걸러내고 맨 위 것을 집었는데, 이 PC 처럼
+# WSL·Hyper-V 가 깔려 있으면 가상 어댑터(172.25.144.1 등)가 먼저 나온다.
+# 그 주소를 휴대폰에 찍어 주면 절대 안 열린다 — 실제로 그렇게 안내하고 있었다.
+#
+# 그래서 **기본 경로(인터넷으로 나가는 길)를 가진 어댑터**의 주소를 쓴다.
+# 공유기를 통하는 바로 그 랜카드라, 같은 공유기에 붙은 휴대폰이 찾아올 수 있다.
+function 내랜주소 {
+    $경로 = Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
+            Sort-Object RouteMetric | Select-Object -First 1
+    if ($경로) {
+        $주소 = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $경로.ifIndex `
+                 -ErrorAction SilentlyContinue |
+                 Where-Object { $_.IPAddress -notlike "127.*" } |
+                 Select-Object -First 1).IPAddress
+        if ($주소) { return $주소 }
+    }
+    # 기본 경로를 못 찾으면(랜선 뺀 상태 등) 가상 어댑터만 빼고 고른다
+    return (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" -and
+            $_.InterfaceAlias -notlike "*vEthernet*" -and
+            $_.InterfaceAlias -notlike "*Loopback*" -and
+            $_.InterfaceAlias -notlike "*Bluetooth*"
+        } | Select-Object -First 1).IPAddress
+}
+
 Write-Host ""
 Write-Host "세권사주타로 서버" -ForegroundColor Yellow
 Write-Host "────────────────────────────────────" -ForegroundColor DarkGray
@@ -54,9 +82,7 @@ $env:APP_ENV = "production"     # 운영 모드 — /docs 를 닫는다
 
 Write-Host ""
 Write-Host "내 PC 에서      : http://localhost:$포트" -ForegroundColor Cyan
-$내주소 = (Get-NetIPAddress -AddressFamily IPv4 |
-    Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
-    Select-Object -First 1).IPAddress
+$내주소 = 내랜주소
 if ($내주소) {
     Write-Host "같은 와이파이서 : http://${내주소}:$포트  (휴대폰에서 열어보세요)" -ForegroundColor Cyan
 }

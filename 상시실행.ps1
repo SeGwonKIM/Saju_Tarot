@@ -24,6 +24,32 @@ $터널로그 = Join-Path $env:TEMP "saju-tunnel.log"
 
 function 알림($글, $색 = "Gray") { Write-Host "  $글" -ForegroundColor $색 }
 
+# 휴대폰에서 열 수 있는 **진짜** 랜 주소를 고른다. (서버_실행.ps1 과 같은 규칙)
+#
+# 예전에는 127.* 과 169.254.* 만 걸러내고 맨 위 것을 집었는데, WSL·Hyper-V 가
+# 깔려 있으면 가상 어댑터(172.25.144.1 등)가 먼저 나온다. 그 주소는 휴대폰에서
+# 절대 안 열린다 — 실제로 그렇게 안내하고 있었다.
+#
+# 그래서 **기본 경로(인터넷으로 나가는 길)를 가진 어댑터**의 주소를 쓴다.
+function 내랜주소 {
+    $경로 = Get-NetRoute -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
+            Sort-Object RouteMetric | Select-Object -First 1
+    if ($경로) {
+        $주소 = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $경로.ifIndex `
+                 -ErrorAction SilentlyContinue |
+                 Where-Object { $_.IPAddress -notlike "127.*" } |
+                 Select-Object -First 1).IPAddress
+        if ($주소) { return $주소 }
+    }
+    return (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+        Where-Object {
+            $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" -and
+            $_.InterfaceAlias -notlike "*vEthernet*" -and
+            $_.InterfaceAlias -notlike "*Loopback*" -and
+            $_.InterfaceAlias -notlike "*Bluetooth*"
+        } | Select-Object -First 1).IPAddress
+}
+
 Write-Host ""
 Write-Host "세권사주타로 — 상시 실행" -ForegroundColor Yellow
 Write-Host "────────────────────────────────────────" -ForegroundColor DarkGray
@@ -71,9 +97,7 @@ $서버 = Start-Process $파이썬 `
 Start-Sleep -Seconds 3
 알림 "✓ 서버 기동  (내 PC: http://localhost:$포트)" Green
 
-$내주소 = (Get-NetIPAddress -AddressFamily IPv4 |
-    Where-Object { $_.IPAddress -notlike "127.*" -and $_.IPAddress -notlike "169.254.*" } |
-    Select-Object -First 1).IPAddress
+$내주소 = 내랜주소
 if ($내주소) { 알림 "  같은 와이파이 : http://${내주소}:$포트" Cyan }
 
 # ── 터널 감시 반복 ───────────────────────────────────────
